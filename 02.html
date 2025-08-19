@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WEB3工具集</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        .progress-bar {
+            transition: width 0.3s ease-in-out;
+        }
+        .log-item {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .error { color: #e53e3e; }
+        .success { color: #10b981; }
+        .warning { color: #f59e0b; }
+        .timer {
+            font-family: monospace;
+            background: #f0f0f0;
+            padding: 4px 8px;
+            border-radius: 4px;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans">
+    <div class="container mx-auto px-4 py-8 max-w-6xl">
+        <header class="mb-8 text-center">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-800 mb-2">代币批量转账工具</h1>
+            <p class="mt-1">⚠️ 温馨提示: 定时转账功能依赖于浏览器窗口保持打开状态</p>
+        </header>
+
+        <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+                <i class="fas fa-key text-red-500 mr-2"></i>私钥设置
+            </h2>
+            <div class="mb-6" id="private-key-container">
+                <div class="flex flex-col md:flex-row gap-4">
+                    <div class="flex-grow">
+                        <label for="private-key" class="block text-gray-700 text-sm font-bold mb-2">
+                            钱包私钥 <span class="text-red-500">*</span>
+                        </label>
+                        <input type="password" id="private-key" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="0x1234567890abcdef...">
+                    </div>
+                    <div class="flex flex-col justify-end">
+                        <button id="import-private-key" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition-colors">
+                            <i class="fas fa-key mr-2"></i>连接私钥
+                        </button>
+                    </div>
+                </div>
+                <div id="wallet-info" class="mt-3 hidden">
+                    <p class="text-gray-700"><i class="fas fa-user-wallet mr-2"></i>钱包地址: <span id="display-address" class="font-mono text-sm truncate"></span></p>
+                </div>
+            </div>
+
+            <h2 class="text-xl font-semibold text-gray-800 mb-4 mt-8 flex items-center">
+                <i class="fas fa-file-invoice-dollar text-green-500 mr-2"></i>转账设置
+            </h2>
+            
+            <!-- 转账类型选择 -->
+            <div class="mb-6">
+                <label class="block text-gray-700 text-sm font-bold mb-2">
+                    转账类型 <span class="text-red-500">*</span>
+                </label>
+                <select id="assetType" onchange="toggleTokenField()" 
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <option value="ETH">ETH转账</option>
+                  <option value="ERC20">ERC20代币转账</option>
+                </select>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div id="tokenAddressContainer">
+                    <label for="contract-address" class="block text-gray-700 text-sm font-bold mb-2">
+                        代币合约地址 <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text" id="contract-address" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="0x1234567890...">
+                </div>
+                
+                <div>
+                    <label for="bsc-rpc" class="block text-gray-700 text-sm font-bold mb-2">
+                        BSC节点RPC <span class="text-gray-500">(可选，默认使用BSC主网)</span>
+                    </label>
+                    <input type="text" id="bsc-rpc" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="https://bsc-dataseed.binance.org/">
+                </div>
+            </div>
+
+            <!-- 批量操作区 -->
+            <div class="mb-6">
+                <h3 class="text-lg font-medium text-gray-800 mb-3 flex items-center">
+                    <i class="fas fa-list text-blue-500 mr-2"></i>接收地址列表 (每行一个地址)
+                </h3>
+                <textarea id="recipients" rows="8" cols="50" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="0x1234567890abcdef...&#10;0x0987654321fedcba..."></textarea>
+            </div>
+
+            <div class="mb-6">
+                <label for="amount" class="block text-gray-700 text-sm font-bold mb-2">
+                    单地址转账金额 <span class="text-red-500">*</span>
+                </label>
+                <div class="flex flex-col md:flex-row gap-4">
+                    <div class="flex-grow">
+                        <input type="number" id="amount" step="0.0001" min="0.0001" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="0.01">
+                    </div>
+                    <div class="flex items-center">
+                        <span class="text-gray-700 px-2" id="amount-unit">ETH</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 定时转账设置 -->
+            <div class="mb-6" id="schedule-container">
+                <h3 class="text-lg font-medium text-gray-800 mb-3 flex items-center">
+                    <i class="fas fa-clock text-blue-500 mr-2"></i>转账时间设置
+                </h3>
+                
+                <div class="flex flex-col sm:flex-row gap-4 mb-4">
+                    <div class="flex items-center space-x-2">
+                        <input type="radio" id="transfer-now" name="transfer-time" class="form-radio h-4 w-4 text-blue-500" checked>
+                        <label for="transfer-now" class="text-gray-700">立即转账</label>
+                    </div>
+                    
+                    <div class="flex items-center space-x-2">
+                        <input type="radio" id="transfer-scheduled" name="transfer-time" class="form-radio h-4 w-4 text-blue-500">
+                        <label for="transfer-scheduled" class="text-gray-700">定时转账</label>
+                        <input type="datetime-local" id="transfer-datetime" class="ml-2 px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" disabled>
+                    </div>
+                </div>
+                
+                <div class="flex items-center space-x-2 mb-4">
+                    <input type="checkbox" id="split-transfer" class="form-checkbox h-4 w-4 text-blue-500">
+                    <label for="split-transfer" class="text-gray-700">分批转账：先转一半，12小时后自动转剩余一半</label>
+                </div>
+                
+                <div id="schedule-info" class="hidden bg-blue-50 p-3 rounded-md text-sm">
+                    <p id="schedule-message" class="text-blue-800"></p>
+                    <p id="timer-display" class="text-blue-700 mt-1"></p>
+                </div>
+            </div>
+
+            <div class="flex justify-end mt-8">
+                <button id="start-transfer" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-6 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                    <i class="fas fa-play mr-2"></i>开始批量转账
+                </button>
+                    <button id="stop-transfer" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-6 rounded transition-colors ml-3 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                        <i class="fas fa-stop mr-2"></i>停止批量转账
+                    </button>
+                
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+                <i class="fas fa-scroll text-purple-500 mr-2"></i>转账记录
+            </h2>
+            <div id="log-container" class="h-64 overflow-y-auto p-2 border border-gray-200 rounded-md mb-4">
+                <p class="text-gray-500 italic">等待连接私钥并开始转账... </p>
+            </div>
+            
+            <div class="mb-4 hidden" id="progress-container">
+                <div class="flex justify-between mb-2">
+                    <span id="progress-text">0/0 笔交易</span>
+                    <span id="progress-percentage">0%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2.5">
+                    <div id="progress-bar" class="bg-blue-500 h-2.5 rounded-full progress-bar" style="width: 0%"></div>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="bg-blue-50 border-l-4 border-blue-500 p-4">
+                    <p class="text-sm text-blue-700">成功交易</p>
+                    <p id="success-count" class="text-2xl font-bold text-blue-800">0</p>
+                </div>
+                <div class="bg-yellow-50 border-l-4 border-yellow-500 p-4">
+                    <p class="text-sm text-yellow-700">失败交易</p>
+                    <p id="failed-count" class="text-2xl font-bold text-yellow-800">0</p>
+                </div>
+                <div class="bg-green-50 border-l-4 border-green-500 p-4">
+                    <p class="text-sm text-green-700">总交易数</p>
+                    <p id="total-count" class="text-2xl font-bold text-green-800">0</p>
+                </div>
+            </div>
+        </div>
+
+        <footer class="mt-12 text-center text-gray-500 text-sm">
+            <p class="mt-1">定时转账功能依赖于浏览器窗口保持打开状态</p>
+        </footer>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.7.0/dist/web3.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // 先定义关键函数，确保在调用前已存在
+        function enableTransferButton() {
+            const assetType = document.getElementById('assetType').value;
+            const hasContractAddress = assetType === 'ETH' || document.getElementById('contract-address').value.trim() !== '';
+            
+            const canEnable = document.getElementById('wallet-info').classList.contains('hidden') === false && 
+                             hasContractAddress &&
+                             recipients.length > 0 &&
+                             !isNaN(parseFloat(document.getElementById('amount').value)) &&
+                             parseFloat(document.getElementById('amount').value) > 0;
+            
+            document.getElementById('start-transfer').disabled = !canEnable;
+        }
+        
+        // 切换代币地址显示/隐藏
+        function toggleTokenField() {
+            const assetType = document.getElementById('assetType').value;
+            const tokenContainer = document.getElementById('tokenAddressContainer');
+            const amountUnit = document.getElementById('amount-unit');
+            
+            if (assetType === 'ETH') {
+                tokenContainer.style.display = 'none';
+                amountUnit.textContent = 'ETH';
+            } else {
+                tokenContainer.style.display = 'block';
+                amountUnit.textContent = '代币';
+            }
+            
+            // 重新检查是否可以启用转账按钮
+            enableTransferButton();
+        }
+        
+        // 全局变量定义
+        let web3, tokenContract, recipients = [], decimals = 0, wallet;
+        let isScheduledTransfer = false;
+        let scheduledTransferTime = null;
+        let isSplitTransfer = false;
+        let secondBatchRecipients = [];
+        let secondBatchTimer = null;
+        let timerInterval = null;
+        let isTransferring = false; // 是否正在转账中
+        let isTransferStopped = false; // 是否已停止转账
+        let scheduledTransferTimer = null; // 定时转账的定时器
+        document.addEventListener('DOMContentLoaded', function() {
+            // 初始化时根据默认值设置显示状态
+            toggleTokenField();
+            
+
+            const logContainer = document.getElementById('log-container');
+            const walletInfoEl = document.getElementById('wallet-info');
+            const displayAddressEl = document.getElementById('display-address');
+            const importPrivateKeyBtn = document.getElementById('import-private-key');
+            const privateKeyEl = document.getElementById('private-key');
+            const contractAddressEl = document.getElementById('contract-address');
+            const startTransferBtn = document.getElementById('start-transfer');
+            const stopTransferBtn = document.getElementById('stop-transfer');
+            const progressContainer = document.getElementById('progress-container');
+            const progressBarEl = document.getElementById('progress-bar');
+            const progressTextEl = document.getElementById('progress-text');
+            const progressPercentageEl = document.getElementById('progress-percentage');
+            const successCountEl = document.getElementById('success-count');
+            const failedCountEl = document.getElementById('failed-count');
+            const totalCountEl = document.getElementById('total-count');
+            const transferNowRadio = document.getElementById('transfer-now');
+            const transferScheduledRadio = document.getElementById('transfer-scheduled');
+            const transferDatetimeInput = document.getElementById('transfer-datetime');
+            const splitTransferCheckbox = document.getElementById('split-transfer');
+            const scheduleContainer = document.getElementById('schedule-container');
+            const scheduleInfo = document.getElementById('schedule-info');
+            const scheduleMessage = document.getElementById('schedule-message');
+            const timerDisplay = document.getElementById('timer-display');
+            const recipientsTextarea = document.getElementById('recipients');
+            const amountInput = document.getElementById('amount');
+            const assetTypeSelect = document.getElementById('assetType');
+            
+            // 初始化日期时间选择器为当前时间加10分钟
+            const now = new Date();
+            now.setMinutes(now.getMinutes() + 10);
+            transferDatetimeInput.value = now.toISOString().slice(0, 16);
+            
+            // 初始化Web3连接
+            function initWeb3() {
+                if (!web3) {
+                    const rpcUrl = document.getElementById('bsc-rpc').value.trim() || 'https://bsc-dataseed.binance.org/';
+                    web3 = new Web3(rpcUrl);
+                    logMessage("已自动初始化Web3连接");
+                }
+                return web3;
+            }
+            
+            // 日期时间选择器切换
+            transferNowRadio.addEventListener('change', function() {
+                transferDatetimeInput.disabled = true;
+                isScheduledTransfer = false;
+                updateScheduleInfo();
+            });
+            
+            transferScheduledRadio.addEventListener('change', function() {
+                transferDatetimeInput.disabled = false;
+                isScheduledTransfer = true;
+                scheduledTransferTime = new Date(transferDatetimeInput.value);
+                updateScheduleInfo();
+            });
+            
+            transferDatetimeInput.addEventListener('change', function() {
+                scheduledTransferTime = new Date(this.value);
+                updateScheduleInfo();
+            });
+            
+            splitTransferCheckbox.addEventListener('change', function() {
+                isSplitTransfer = this.checked;
+                if (isSplitTransfer) {
+                    logMessage("已启用分批转账: 先转一半金额，12小时后自动转剩余一半", "info");
+                } else {
+                    // 取消分批转账时，清除第二批转账数据
+                    secondBatchRecipients = [];
+                    if (secondBatchTimer) {
+                        clearTimeout(secondBatchTimer);
+                        secondBatchTimer = null;
+                    }
+                }
+                updateScheduleInfo();
+            });
+            
+            // 更新定时信息显示
+            function updateScheduleInfo() {
+                if (!isScheduledTransfer && !isSplitTransfer) {
+                    scheduleInfo.classList.add('hidden');
+                    if (timerInterval) {
+                        clearInterval(timerInterval);
+                        timerInterval = null;
+                    }
+                    return;
+                }
+                
+                scheduleInfo.classList.remove('hidden');
+                let message = '';
+                
+                if (isScheduledTransfer) {
+                    const formattedTime = scheduledTransferTime.toLocaleString();
+                    message += `第一批转账将在 ${formattedTime} 执行`;
+                    
+                    // 启动倒计时
+                    if (timerInterval) {
+                        clearInterval(timerInterval);
+                    }
+                    
+                    timerInterval = setInterval(() => {
+                        updateTimerDisplay(scheduledTransferTime);
+                    }, 1000);
+                }
+                
+                if (isSplitTransfer) {
+                    if (message) message += '<br>';
+                    message += '第二批转账将在第一批完成后12小时自动执行';
+                }
+                
+                scheduleMessage.innerHTML = message;
+            }
+            
+            // 更新倒计时显示
+            function updateTimerDisplay(targetTime) {
+                const now = new Date();
+                const diffMs = targetTime - now;
+                
+                if (diffMs <= 0) {
+                    timerDisplay.textContent = "倒计时结束，准备执行转账...";
+                    if (timerInterval) {
+                        clearInterval(timerInterval);
+                        timerInterval = null;
+                    }
+                    return;
+                }
+                
+                const hours = Math.floor(diffMs / (1000 * 60 * 60));
+                const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((diffMs % (1000 * 60)) / 1000);
+                
+                timerDisplay.innerHTML = `倒计时: <span class="timer">${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}</span>`;
+            }
+            
+            // 导入私钥
+            importPrivateKeyBtn.addEventListener('click', async function() {
+                try {
+                    const privateKey = privateKeyEl.value.trim();
+                    if (!privateKey || !privateKey.startsWith('0x')) {
+                        logMessage("私钥格式不正确，请确保以0x开头", "error");
+                        return;
+                    }
+
+                    // 初始化Web3
+                    const rpcUrl = document.getElementById('bsc-rpc').value.trim() || 'https://bsc-dataseed.binance.org/';
+                    web3 = new Web3(rpcUrl);
+
+                    // 从私钥创建钱包
+                    wallet = web3.eth.accounts.privateKeyToAccount(privateKey);
+                    const walletAddress = wallet.address;
+
+                    displayAddressEl.textContent = walletAddress;
+                    walletInfoEl.classList.remove('hidden');
+                    importPrivateKeyBtn.textContent = '私钥已连接成功';
+                    importPrivateKeyBtn.classList.remove('bg-blue-500');
+                    importPrivateKeyBtn.classList.add('bg-green-500');
+                    privateKeyEl.value = ''; // 清空私钥输入框
+
+                    logMessage(`成功从私钥导入钱包: ${walletAddress}`);
+
+                    // 检查网络
+                    const chainId = await web3.eth.getChainId();
+                    let networkName = "未知网络";
+                    if (chainId === 56) {
+                        networkName = "BSC主网";
+                    } else if (chainId === 97) {
+                        networkName = "BSC测试网";
+                    } else if (chainId === 1) {
+                        networkName = "以太坊主网";
+                    } else if (chainId === 3) {
+                        networkName = "以太坊测试网(Ropsten)";
+                    }
+                    logMessage(`当前网络: ${networkName} (节点 ID: ${chainId})`);
+
+                    // 获取ETH余额
+                    const ethBalance = await web3.eth.getBalance(walletAddress);
+                    const formattedEthBalance = web3.utils.fromWei(ethBalance, 'ether'); 
+                    logMessage(`钱包ETH余额: ${formattedEthBalance} ETH`);
+
+                    // 启用转账按钮
+                    enableTransferButton();
+                } catch (error) {
+                    logMessage(`导入私钥失败: ${error.message}`, "error");
+                }
+            });
+
+            // 解析接收地址
+            function parseRecipients() {
+                // 确保Web3已初始化
+                if (!web3) {
+                    initWeb3();
+                }
+                
+                const amount = parseFloat(amountInput.value);
+                
+                if (isNaN(amount) || amount <= 0) {
+                    logMessage("转账金额必须大于0", "error");
+                    return [];
+                }
+                
+                const lines = recipientsTextarea.value.split(/\r?\n|\r/);
+                const result = [];
+                
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    if (!line || line.startsWith('#')) continue; // 跳过空行和注释行
+                    
+                    try {
+                        const address = web3.utils.toChecksumAddress(line);
+                        result.push({ address, amount });
+                    } catch (error) {
+                        logMessage(`第 ${i+1} 行: 地址格式错误，跳过: ${error.message}`, "warning");
+                    }
+                }
+                
+                return result;
+            }
+
+            // 文本框变更事件
+            recipientsTextarea.addEventListener('input', function() {
+                recipients = parseRecipients();
+                if (recipients.length > 0) {
+                    totalCountEl.textContent = recipients.length;
+                    progressContainer.classList.remove('hidden');
+                } else {
+                    progressContainer.classList.add('hidden');
+                }
+                enableTransferButton();
+            });
+
+            amountInput.addEventListener('input', function() {
+                // 重新解析接收地址，因为金额可能已更改
+                recipients = parseRecipients();
+                enableTransferButton();
+            });
+
+            // 停止转账按钮事件
+            stopTransferBtn.addEventListener('click', function() {
+                if (!isTransferring) return;
+                
+                // 停止定时转账（如果还未开始执行）
+                if (isScheduledTransfer && scheduledTransferTimer) {
+                    clearTimeout(scheduledTransferTimer);
+                    scheduledTransferTimer = null;
+                    logMessage("定时转账已取消", "info");
+                }
+                
+                // 停止正在进行的转账
+                if (isTransferring) {
+                    isTransferStopped = true;
+                    logMessage("已收到停止指令，将在当前交易完成后终止转账", "warning");
+                    stopTransferBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>终止中...';
+                    stopTransferBtn.disabled = true;
+                }
+            });
+
+            // 开始转账
+            startTransferBtn.addEventListener('click', async function() {
+                if (!recipients.length || !wallet) return;
+                
+                // 更新状态变量
+                isTransferring = true;
+                isTransferStopped = false;
+                
+                // 更新按钮状态
+                startTransferBtn.disabled = true;
+                startTransferBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>处理中...';
+                stopTransferBtn.disabled = false;
+                stopTransferBtn.innerHTML = '<i class="fas fa-stop mr-2"></i>停止批量转账';
+                
+                try {
+                    // 确保Web3已初始化
+                    if (!web3) {
+                        initWeb3();
+                    }
+                    
+                    const assetType = document.getElementById('assetType').value;
+                    
+                    // 对于ERC20转账，验证合约地址
+                    if (assetType === 'ERC20') {
+                        const contractAddress = contractAddressEl.value.trim();
+                        if (!web3.utils.isAddress(contractAddress)) {
+                            logMessage("代币合约地址无效", "error");
+                            resetTransferState();
+                            return;
+                        }
+                        
+                        // 初始化代币合约
+                        const tokenAbi = [
+                            {
+                                "constant": true,
+                                "inputs": [{"name": "_owner", "type": "address"}],
+                                "name": "balanceOf",
+                                "outputs": [{"name": "balance", "type": "uint256"}],
+                                "payable": false,
+                                "stateMutability": "view",
+                                "type": "function"
+                            },
+                            {
+                                "constant": true,
+                                "inputs": [],
+                                "name": "decimals",
+                                "outputs": [{"name": "", "type": "uint8"}],
+                                "payable": false,
+                                "stateMutability": "view",
+                                "type": "function"
+                            },
+                            {
+                                "constant": false,
+                                "inputs": [{"name": "_to", "type": "address"}, {"name": "_value", "type": "uint256"}],
+                                "name": "transfer",
+                                "outputs": [{"name": "", "type": "bool"}],
+                                "payable": false,
+                                "stateMutability": "nonpayable",
+                                "type": "function"
+                            }
+                        ];
+                        
+                        tokenContract = new web3.eth.Contract(tokenAbi, contractAddress);
+                        logMessage(`代币合约初始化成功 - 地址: ${contractAddress}`);
+                        
+                        // 获取小数位数
+                        decimals = await tokenContract.methods.decimals().call();
+                        logMessage(`代币小数位数: ${decimals}`);
+                        
+                        // 获取代币余额
+                        const walletAddress = wallet.address;
+                        const balance = await tokenContract.methods.balanceOf(walletAddress).call();
+                        const formattedBalance = balance / (10 ** decimals);
+                        logMessage(`钱包代币余额: ${formattedBalance} 个代币`);
+                    }
+                    
+                    // 计算总金额
+                    const totalAmount = recipients.reduce((sum, recipient) => sum + recipient.amount, 0);
+                    logMessage(`准备发送 ${recipients.length} 笔交易，总金额: ${totalAmount} ${assetType === 'ETH' ? 'ETH' : '个代币'}`);
+                    
+                    // 检查余额是否足够
+                    if (assetType === 'ETH') {
+                        const walletAddress = wallet.address;
+                        const ethBalance = await web3.eth.getBalance(walletAddress);
+                        const formattedEthBalance = parseFloat(web3.utils.fromWei(ethBalance, 'ether'));
+                        
+                        // 估算Gas费用（每笔交易约0.0005 ETH）
+                        const estimatedGasCost = recipients.length * 0.0005;
+                        const totalRequired = totalAmount + estimatedGasCost;
+                        
+                        if (formattedEthBalance < totalRequired) {
+                            logMessage(`ETH余额不足! 钱包余额: ${formattedEthBalance}, 需要: ${totalAmount} (转账) + ${estimatedGasCost} (预估Gas) = ${totalRequired}`, "error");
+                            resetTransferState();
+                            return;
+                        }
+                    } else {
+                        // ERC20代币余额检查
+                        const walletAddress = wallet.address;
+                        const balance = await tokenContract.methods.balanceOf(walletAddress).call();
+                        const formattedBalance = balance / (10 ** decimals);
+                        
+                        if (parseFloat(formattedBalance) < totalAmount) {
+                            logMessage(`代币余额不足! 钱包余额: ${formattedBalance}, 需要: ${totalAmount}`, "error");
+                            resetTransferState();
+                            return;
+                        }
+                    }
+                    
+                    // 如果是定时转账，设置定时器
+                    if (isScheduledTransfer) {
+                        const now = new Date();
+                        const diffMs = scheduledTransferTime - now;
+                        
+                        if (diffMs <= 0) {
+                            logMessage("指定的转账时间已过期，将立即执行", "warning");
+                            await executeTransfer();
+                        } else {
+                            logMessage(`转账将在 ${scheduledTransferTime.toLocaleString()} 执行`, "info");
+                            
+                            // 清除之前的定时器
+                            if (timerInterval) {
+                                clearInterval(timerInterval);
+                                timerInterval = null;
+                            }
+                            
+                            // 创建新的定时器
+                            timerInterval = setInterval(() => {
+                                updateTimerDisplay(scheduledTransferTime);
+                            }, 1000);
+                            
+                            // 设置转账定时器
+                            scheduledTransferTimer = setTimeout(async () => {
+                                if (timerInterval) {
+                                    clearInterval(timerInterval);
+                                    timerInterval = null;
+                                }
+                                timerDisplay.textContent = "正在执行转账...";
+                                await executeTransfer();
+                            }, diffMs);
+                        }
+                    } else {
+                        // 立即转账
+                        await executeTransfer();
+                    }
+                } catch (error) {
+                    logMessage(`批量转账过程中发生错误: ${error.message}`, "error");
+                    resetTransferState();
+                }
+            });
+            
+            // 重置转账状态（按钮状态和变量）
+            function resetTransferState() {
+                isTransferring = false;
+                isTransferStopped = false;
+                
+                startTransferBtn.disabled = false;
+                startTransferBtn.innerHTML = '<i class="fas fa-play mr-2"></i>开始批量转账';
+                stopTransferBtn.disabled = true;
+                stopTransferBtn.innerHTML = '<i class="fas fa-stop mr-2"></i>停止批量转账';
+            }
+            
+            // 执行转账操作
+            async function executeTransfer() {
+                const assetType = document.getElementById('assetType').value;
+                let transferRecipients = [...recipients];
+                let isFirstBatch = true;
+                
+                // 如果是分批转账，只处理一半金额
+                if (isSplitTransfer) {
+                    // 创建第二批转账数据（剩余一半金额）
+                    secondBatchRecipients = recipients.map(recipient => ({
+                        address: recipient.address,
+                        amount: recipient.amount / 2
+                    }));
+                    
+                    // 修改第一批转账数据（只有一半金额）
+                    transferRecipients = recipients.map(recipient => ({
+                        address: recipient.address,
+                        amount: recipient.amount / 2
+                    }));
+                    
+                    logMessage(`开始执行第一批转账（总金额的50%）`, "info");
+                } else {
+                    logMessage(`开始执行${assetType === 'ETH' ? 'ETH' : 'ERC20代币'}转账`, "info");
+                }
+                
+                // 重置计数器
+                let successCount = 0;
+                let failedCount = 0;
+                const failedRecipients = [];
+                
+                // 发送交易
+                for (let i = 0; i < transferRecipients.length; i++) {
+                    // 检查是否需要停止转账
+                    if (isTransferStopped) {
+                        logMessage(`转账已停止。已完成 ${i} 笔交易，剩余 ${transferRecipients.length - i} 笔未执行`, "warning");
+                        break;
+                    }
+                    
+                    const { address, amount } = transferRecipients[i];
+                    const progress = ((i + 1) / transferRecipients.length) * 100;
+                    
+                    updateProgress(i + 1, transferRecipients.length, progress);
+                    
+                    try {
+                        logMessage(`发送第 ${i+1}/${transferRecipients.length} 笔交易 - 地址: ${address}, 金额: ${amount} ${assetType === 'ETH' ? 'ETH' : '个代币'}`);
+                        
+                        // 构建交易
+                        const nonce = await web3.eth.getTransactionCount(wallet.address);
+                        
+                        // 设置固定Gas价格为0.1 Gwei
+                        const gasPrice = web3.utils.toWei('0.1', 'gwei'); // 0.1 Gwei = 100000000 wei
+                        
+                        let rawTx;
+                        
+                        if (assetType === 'ETH') {
+                            // ETH转账
+                            const value = web3.utils.toWei(amount.toString(), 'ether');
+                            
+                            // 估算Gas
+                            const gasEstimate = await web3.eth.estimateGas({
+                                from: wallet.address,
+                                to: address,
+                                value: value
+                            });
+                            
+                            // 构建原始交易
+                            rawTx = {
+                                from: wallet.address,
+                                to: address,
+                                value: value,
+                                gas: Math.ceil(gasEstimate * 1.5), // 增加50%作为缓冲
+                                gasPrice: gasPrice,
+                                nonce: nonce,
+                                chainId: await web3.eth.getChainId()
+                            };
+                        } else {
+                            // ERC20代币转账
+                            // 转换金额为最小单位
+                            const tokenAmount = convertToWei(amount, decimals);
+                            
+                            // 估算Gas
+                            const gasEstimate = await tokenContract.methods.transfer(address, tokenAmount).estimateGas({
+                                from: wallet.address
+                            });
+                            
+                            // 构建交易数据
+                            const txData = tokenContract.methods.transfer(address, tokenAmount).encodeABI();
+                            
+                            // 构建原始交易
+                            rawTx = {
+                                from: wallet.address,
+                                to: contractAddressEl.value.trim(),
+                                data: txData,
+                                gas: Math.ceil(gasEstimate * 1.5), // 增加50%作为缓冲
+                                gasPrice: gasPrice,
+                                nonce: nonce,
+                                chainId: await web3.eth.getChainId()
+                            };
+                        }
+                        
+                        // 显示Gas费用估计
+                        const gasPriceGwei = web3.utils.fromWei(rawTx.gasPrice, 'gwei');
+                        const gasCostEth = (rawTx.gas * rawTx.gasPrice) / 1e18;
+                        logMessage(`交易Gas估计: ${rawTx.gas} (${gasPriceGwei} Gwei), 费用: ${gasCostEth.toFixed(6)} ETH`);
+                        
+                        // 使用私钥签名交易
+                        const signedTx = await wallet.signTransaction(rawTx);
+                        
+                        // 发送签名后的交易
+                        const txReceipt = await web3.eth.sendSignedTransaction(signedTx.rawTransaction);
+                        
+                        // 显示交易结果
+                        logMessage(`交易确认成功 - TX Hash: ${txReceipt.transactionHash}, 区块: ${txReceipt.blockNumber}, Gas使用: ${txReceipt.gasUsed}`, "success");
+                        successCount++;
+                    } catch (error) {
+                        logMessage(`发送交易时失败 - 地址: ${address}, 金额: ${amount}, 错误: ${error.message}`, "error");
+                        failedCount++;
+                        failedRecipients.push({ address, amount, error: error.message });
+                    }
+                    
+                    // 间隔等待，避免交易拥堵
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                }
+                
+                // 更新计数显示
+                successCountEl.textContent = successCount;
+                failedCountEl.textContent = failedCount;
+                
+                // 显示最终结果
+                if (failedRecipients.length > 0) {
+                    logMessage(`${isFirstBatch ? '第一批' : '第二批'}转账完成 - 成功: ${successCount}, 失败: ${failedRecipients.length}`, "warning");
+                    logMessage("失败记录:");
+                    failedRecipients.forEach((recipient, index) => {
+                        logMessage(`  ${index+1}. 地址: ${recipient.address}, 金额: ${recipient.amount}, 错误: ${recipient.error}`, "warning");
+                    });
+                } else {
+                    logMessage(`${isFirstBatch ? '第一批' : '第二批'}转账完成 - 全部 ${successCount} 笔交易成功！`, "success");
+                }
+                
+                // 重置状态（无论是否停止）
+                resetTransferState();
+                
+                // 如果是分批转账且未被停止，设置第二批转账的定时器
+                if (isSplitTransfer && isFirstBatch && !isTransferStopped) {
+                    const hours12 = 12 * 60 * 60 * 1000; // 12小时的毫秒数
+                    const secondBatchTime = new Date(Date.now() + hours12);
+                    
+                    logMessage(`第二批转账将在 ${secondBatchTime.toLocaleString()} (12小时后) 自动执行`, "info");
+                    
+                    // 设置第二批转账的定时器
+                    secondBatchTimer = setTimeout(async () => {
+                        logMessage("开始执行第二批转账（剩余的50%金额）", "info");
+                        isFirstBatch = false;
+                        await executeTransfer();
+                    }, hours12);
+                }
+            }
+
+            // 将金额转换为Wei
+            function convertToWei(amount, decimals) {
+                try {
+                    // 处理小数部分
+                    let [integerPart, decimalPart = ''] = amount.toString().split('.');
+                    
+                    // 确保小数部分不超过代币精度
+                    if (decimalPart.length > decimals) {
+                        decimalPart = decimalPart.substring(0, decimals);
+                    }
+                    
+                    // 计算需要补零的数量
+                    const zerosToAdd = decimals - decimalPart.length;
+                    
+                    // 构建最终的数字字符串
+                    const fullNumber = integerPart + decimalPart + '0'.repeat(zerosToAdd);
+                    
+                    // 转换为BN对象
+                    return web3.utils.toBN(fullNumber);
+                } catch (error) {
+                    logMessage(`转换金额失败: ${amount} (精度: ${decimals}) - 错误: ${error.message}`, "error");
+                    throw error;
+                }
+            }
+
+            // 记录日志
+            function logMessage(message, type = "info") {
+                const logItem = document.createElement('p');
+                logItem.className = `log-item mb-1 ${type === "error" ? "error" : type === "success" ? "success" : type === "warning" ? "warning" : ""}`;
+                logItem.innerHTML = `<i class="fas ${type === "error" ? "fa-exclamation-circle" : type === "success" ? "fa-check-circle" : type === "warning" ? "fa-exclamation-triangle" : "fa-info-circle"} mr-2"></i>${message}`;
+                
+                logContainer.appendChild(logItem);
+                logContainer.scrollTop = logContainer.scrollHeight;
+            }
+
+            // 更新进度
+            function updateProgress(current, total, percentage) {
+                progressTextEl.textContent = `${current}/${total} 笔交易`;
+                progressPercentageEl.textContent = `${percentage.toFixed(1)}%`;
+                progressBarEl.style.width = `${percentage}%`;
+            }
+        });
+    </script>
+</body>
+</html>

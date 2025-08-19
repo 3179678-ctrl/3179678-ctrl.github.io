@@ -1,0 +1,1069 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WEB3工具集</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+     
+  <style>
+        .progress-bar {
+            transition: width 0.3s ease-in-out;
+        }
+        .log-item {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .error { color: #e53e3e; }
+        .success { color: #10b981; }
+        .warning { color: #f59e0b; }
+        .private-key-row {
+            transition: all 0.3s ease;
+        }
+        .private-key-row:hover {
+            background-color: #f8fafc;
+        }
+        .add-key-btn {
+            transition: all 0.2s ease;
+        }
+        .add-key-btn:hover {
+            transform: translateY(-2px);
+        }
+        .wallet-card {
+            transition: all 0.3s ease;
+        }
+        .wallet-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .node-status {
+            transition: all 0.3s ease;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        .status-indicator.connected {
+            background-color: #10b981;
+        }
+        .status-indicator.disconnected {
+            background-color: #e53e3e;
+        }
+        .status-indicator.warning {
+            background-color: #f59e0b;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans">
+    <div class="container mx-auto px-4 py-8 max-w-6xl">
+        <header class="mb-8 text-center">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-800 mb-2">代币归集工具</h1>
+            <div class="flex justify-center items-center mt-2">
+                <div class="node-status flex items-center bg-gray-100 px-3 py-1 rounded-full">
+                    <div id="connection-status" class="status-indicator disconnected"></div>
+                    <span id="connection-text" class="text-sm text-gray-600">未连接</span>
+                </div>
+            </div>
+            <p class="text-red-500 text-sm mt-2">⚠️ 警告: 使用私钥在网页中操作存在安全风险，请确保在安全环境下使用</p>
+        </header>
+
+        <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+                <i class="fas fa-key text-red-500 mr-2"></i>私钥管理
+            </h2>
+            
+            <div class="mb-6">
+                <label for="multiple-private-keys" class="block text-gray-700 text-sm font-bold mb-2">
+                    批量粘贴私钥 (每行一个)
+                </label>
+                <div class="relative">
+                    <textarea id="multiple-private-keys" rows="5" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="0x1234567890abcdef...&#10;0x234567890abcdef1...&#10;0x34567890abcdef12..."></textarea>
+                    <div class="absolute right-3 top-3">
+                        <button id="process-private-keys" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-1 px-3 rounded text-sm transition-colors">
+                            <i class="fas fa-magic mr-1"></i> 连接私钥
+                        </button>
+                    </div>
+                </div>
+                <p class="text-xs text-gray-500 mt-1">请确保每个私钥独占一行，以0x开头，长度为66个字符</p>
+            </div>
+            
+            <div id="private-key-container" class="mb-6">
+                <!-- 私钥行将在这里动态生成 -->
+            </div>
+            
+            <div id="wallets-info" class="mt-4 hidden">
+                <h3 class="text-lg font-medium text-gray-800 mb-2 flex items-center">
+                    <i class="fas fa-wallet text-blue-500 mr-2"></i>已加载钱包
+                </h3>
+                <div id="wallets-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    <!-- 钱包信息将在这里动态显示 -->
+                </div>
+            </div>
+
+            <h2 class="text-xl font-semibold text-gray-800 mb-4 mt-8 flex items-center">
+                <i class="fas fa-file-invoice-dollar text-green-500 mr-2"></i>归集设置
+            </h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div>
+                    <label for="contract-address" class="block text-gray-700 text-sm font-bold mb-2">
+                        代币合约地址 <span class="text-red-500">*</span>
+                    </label>
+                    <div class="relative">
+                        <input type="text" id="contract-address" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="0x1234567890...">
+                        <button id="test-contract" class="absolute right-2 top-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-1 px-3 rounded text-sm transition-colors">
+                            <i class="fas fa-check-circle mr-1"></i> 连接合约
+                        </button>
+                    </div>
+                </div>
+                
+                <div>
+                    <label for="bsc-rpc" class="block text-gray-700 text-sm font-bold mb-2">
+                        BSC节点RPC <span class="text-gray-500">(可选，默认使用BSC主网)</span>
+                    </label>
+                    <div class="relative">
+                        <input type="text" id="bsc-rpc" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="https://bsc-dataseed.binance.org/">
+                        <button id="test-rpc" class="absolute right-2 top-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-1 px-3 rounded text-sm transition-colors">
+                            <i class="fas fa-check-circle mr-1"></i> 连接节点
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-6">
+                <label for="target-address" class="block text-gray-700 text-sm font-bold mb-2">
+                    目标归集地址 <span class="text-red-500">*</span>
+                </label>
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <div class="flex-grow">
+                        <input type="text" id="target-address" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="0x1234567890abcdef...">
+                    </div>
+                    <div class="flex items-center">
+                        <button id="copy-target-address" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition-colors text-sm">
+                            <i class="fas fa-clipboard mr-1"></i> 复制
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-end mt-8">
+                <button id="start-consolidation" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-6 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                    <i class="fas fa-play mr-2"></i>开始归集代币
+                </button>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+                <i class="fas fa-scroll text-purple-500 mr-2"></i>归集记录
+            </h2>
+            <div id="log-container" class="h-64 overflow-y-auto p-2 border border-gray-200 rounded-md mb-4">
+                <p class="text-gray-500 italic">等待添加私钥并开始归集... </p>
+            </div>
+            
+            <div class="mb-4 hidden" id="progress-container">
+                <div class="flex justify-between mb-2">
+                    <span id="progress-text">0/0 笔交易</span>
+                    <span id="progress-percentage">0%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2.5">
+                    <div id="progress-bar" class="bg-blue-500 h-2.5 rounded-full progress-bar" style="width: 0%"></div>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="bg-blue-50 border-l-4 border-blue-500 p-4">
+                    <p class="text-sm text-blue-700">成功归集</p>
+                    <p id="success-count" class="text-2xl font-bold text-blue-800">0</p>
+                </div>
+                <div class="bg-yellow-50 border-l-4 border-yellow-500 p-4">
+                    <p class="text-sm text-yellow-700">失败归集</p>
+                    <p id="failed-count" class="text-2xl font-bold text-yellow-800">0</p>
+                </div>
+                <div class="bg-green-50 border-l-4 border-green-500 p-4">
+                    <p class="text-sm text-green-700">总归集数</p>
+                    <p id="total-count" class="text-2xl font-bold text-green-800">0</p>
+                </div>
+            </div>
+        </div>
+
+        <footer class="mt-12 text-center text-gray-500 text-sm">
+            <p class="mt-1">⚠️ 重要: 请确保在使用后清除所有私钥输入，本工具仅在本地处理数据</p>
+        </footer>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.7.0/dist/web3.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 全局变量
+            let web3, tokenContract, privateKeys = [], wallets = [], targetAddress = '';
+            let decimals = 0;
+            let isConnected = false;
+            
+            const logContainer = document.getElementById('log-container');
+            const privateKeyContainer = document.getElementById('private-key-container');
+            const processPrivateKeysBtn = document.getElementById('process-private-keys');
+            const multiplePrivateKeysTextarea = document.getElementById('multiple-private-keys');
+            const contractAddressEl = document.getElementById('contract-address');
+            const targetAddressEl = document.getElementById('target-address');
+            const copyTargetAddressBtn = document.getElementById('copy-target-address');
+            const startConsolidationBtn = document.getElementById('start-consolidation');
+            const progressContainer = document.getElementById('progress-container');
+            const progressBarEl = document.getElementById('progress-bar');
+            const progressTextEl = document.getElementById('progress-text');
+            const progressPercentageEl = document.getElementById('progress-percentage');
+            const successCountEl = document.getElementById('success-count');
+            const failedCountEl = document.getElementById('failed-count');
+            const totalCountEl = document.getElementById('total-count');
+            const walletsListEl = document.getElementById('wallets-list');
+            const connectionStatusEl = document.getElementById('connection-status');
+            const connectionTextEl = document.getElementById('connection-text');
+            const testRpcBtn = document.getElementById('test-rpc');
+            const testContractBtn = document.getElementById('test-contract');
+            
+            // 初始化Web3连接
+            function initWeb3() {
+                const rpcUrl = document.getElementById('bsc-rpc').value.trim() || 'https://bsc-dataseed.binance.org/';
+                
+                try {
+                    // 检查Web3是否已初始化
+                    if (web3) {
+                        // 如果已经连接到相同的RPC，则不重新初始化
+                        if (web3.currentProvider.host === rpcUrl) {
+                            return web3;
+                        }
+                    }
+                    
+                    // 创建新的Web3实例
+                    web3 = new Web3(rpcUrl);
+                    
+                    // 测试连接
+                    return testConnection().then(isConnected => {
+                        if (isConnected) {
+                            logMessage(`已连接到BSC节点: ${rpcUrl}`, "success");
+                            return web3;
+                        } else {
+                            throw new Error("无法连接到节点，请检查RPC URL");
+                        }
+                    });
+                } catch (error) {
+                    logMessage(`初始化Web3失败: ${error.message}`, "error");
+                    updateConnectionStatus(false);
+                    throw error;
+                }
+            }
+            
+            // 测试节点连接
+            async function testConnection() {
+                try {
+                    // 尝试获取网络ID
+                    const networkId = await web3.eth.net.getId();
+                    
+                    // 尝试获取当前区块号
+                    const blockNumber = await web3.eth.getBlockNumber();
+                    
+                    // 根据网络ID确定网络名称
+                    let networkName = "未知网络";
+                    if (networkId === 56) {
+                        networkName = "BSC主网";
+                    } else if (networkId === 97) {
+                        networkName = "BSC测试网";
+                    }
+                    
+                    // 更新连接状态
+                    updateConnectionStatus(true, `网络: ${networkName}, 区块: ${blockNumber}`);
+                    return true;
+                } catch (error) {
+                    logMessage(`连接测试失败: ${error.message}`, "error");
+                    updateConnectionStatus(false);
+                    return false;
+                }
+            }
+            
+            // 更新连接状态显示
+            function updateConnectionStatus(connected, details = "") {
+                isConnected = connected;
+                
+                if (connected) {
+                    connectionStatusEl.className = "status-indicator connected";
+                    connectionTextEl.className = "text-sm text-green-600";
+                    connectionTextEl.textContent = "已连接";
+                    
+                    if (details) {
+                        connectionTextEl.title = details;
+                    }
+                } else {
+                    connectionStatusEl.className = "status-indicator disconnected";
+                    connectionTextEl.className = "text-sm text-red-600";
+                    connectionTextEl.textContent = "未连接";
+                    connectionTextEl.title = "";
+                }
+            }
+            
+            // 测试RPC连接
+            testRpcBtn.addEventListener('click', async function() {
+                try {
+                    logMessage("正在测试RPC连接...");
+                    await initWeb3();
+                } catch (error) {
+                    logMessage(`RPC连接测试失败: ${error.message}`, "error");
+                }
+            });
+            
+            // 测试合约连接
+            testContractBtn.addEventListener('click', async function() {
+                const contractAddress = contractAddressEl.value.trim();
+                
+                if (!web3) {
+                    try {
+                        await initWeb3();
+                    } catch (error) {
+                        logMessage(`初始化Web3失败，无法测试合约: ${error.message}`, "error");
+                        return;
+                    }
+                }
+                
+                if (!contractAddress) {
+                    logMessage("请输入代币合约地址", "warning");
+                    return;
+                }
+                
+                if (!web3.utils.isAddress(contractAddress)) {
+                    logMessage("合约地址格式无效", "error");
+                    return;
+                }
+                
+                try {
+                    logMessage(`正在测试合约 ${contractAddress}...`);
+                    
+                    // 初始化代币合约
+                    const tokenAbi = [
+                        {
+                            "constant": true,
+                            "inputs": [],
+                            "name": "name",
+                            "outputs": [{"name": "", "type": "string"}],
+                            "payable": false,
+                            "stateMutability": "view",
+                            "type": "function"
+                        },
+                        {
+                            "constant": true,
+                            "inputs": [],
+                            "name": "symbol",
+                            "outputs": [{"name": "", "type": "string"}],
+                            "payable": false,
+                            "stateMutability": "view",
+                            "type": "function"
+                        },
+                        {
+                            "constant": true,
+                            "inputs": [],
+                            "name": "decimals",
+                            "outputs": [{"name": "", "type": "uint8"}],
+                            "payable": false,
+                            "stateMutability": "view",
+                            "type": "function"
+                        }
+                    ];
+                    
+                    const testContract = new web3.eth.Contract(tokenAbi, contractAddress);
+                    
+                    // 尝试获取合约信息
+                    const name = await testContract.methods.name().call();
+                    const symbol = await testContract.methods.symbol().call();
+                    const decimals = await testContract.methods.decimals().call();
+                    
+                    logMessage(`合约测试成功 - 名称: ${name}, 符号: ${symbol}, 小数位数: ${decimals}`, "success");
+                    
+                    // 保存合约实例供后续使用
+                    tokenContract = testContract;
+                } catch (error) {
+                    logMessage(`合约测试失败: ${error.message}`, "error");
+                    
+                    // 提供可能的错误原因
+                    if (error.message.includes("invalid address")) {
+                        logMessage("可能原因: 合约地址格式不正确", "warning");
+                    } else if (error.message.includes("not a contract address")) {
+                        logMessage("可能原因: 该地址不是合约地址", "warning");
+                    } else if (error.message.includes("timeout") || error.message.includes("Failed to fetch")) {
+                        logMessage("可能原因: 网络连接问题或节点响应超时", "warning");
+                    } else {
+                        logMessage("可能原因: 合约ABI不兼容或合约方法不存在", "warning");
+                    }
+                }
+            });
+            
+            // 处理多个私钥
+            function processMultiplePrivateKeys() {
+                const text = multiplePrivateKeysTextarea.value.trim();
+                if (!text) {
+                    logMessage("请粘贴至少一个私钥", "warning");
+                    return;
+                }
+                
+                // 按行分割私钥
+                const lines = text.split('\n');
+                let validCount = 0;
+                let invalidCount = 0;
+                const invalidKeys = [];
+                
+                // 清空现有私钥行
+                privateKeyContainer.innerHTML = '';
+                
+                // 验证并添加私钥行
+                lines.forEach((line, index) => {
+                    const privateKey = line.trim();
+                    if (!privateKey) return;
+                    
+                    try {
+                        // 验证私钥格式
+                        if (!privateKey.startsWith('0x')) {
+                            throw new Error('私钥必须以0x开头');
+                        }
+                        
+                        if (privateKey.length !== 66) {
+                            throw new Error('私钥长度不正确');
+                        }
+                        
+                        // 从私钥创建钱包（仅验证格式）
+                        const wallet = web3.eth.accounts.privateKeyToAccount(privateKey);
+                        
+                        // 添加私钥行
+                        addPrivateKeyRow(privateKey);
+                        validCount++;
+                    } catch (error) {
+                        invalidCount++;
+                        invalidKeys.push({ key: privateKey, error: error.message, line: index + 1 });
+                    }
+                });
+                
+                // 显示处理结果
+                if (validCount > 0) {
+                    logMessage(`已成功加载 ${validCount} 个私钥`, "success");
+                }
+                
+                if (invalidCount > 0) {
+                    logMessage(`发现 ${invalidCount} 个无效私钥`, "error");
+                    invalidKeys.forEach(item => {
+                        logMessage(`  第 ${item.line} 行: ${item.error}`, "error");
+                    });
+                }
+                
+                // 更新归集按钮状态
+                updateConsolidationButtonState();
+            }
+            
+            // 添加私钥行
+            function addPrivateKeyRow(privateKey = '') {
+                const row = document.createElement('div');
+                row.className = 'private-key-row p-3 border rounded-md mb-3';
+                row.innerHTML = `
+                    <div class="flex flex-col sm:flex-row gap-3">
+                        <div class="flex-grow">
+                            <input type="password" class="private-key w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="0x1234567890abcdef..." value="${privateKey}">
+                        </div>
+                        <div class="flex items-center">
+                            <button class="toggle-private-key text-gray-400 hover:text-gray-600">
+                                <i class="fas fa-eye-slash"></i>
+                            </button>
+                        </div>
+                        <div class="flex items-center">
+                            <button class="remove-private-key text-red-500 hover:text-red-700">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                // 添加到容器
+                privateKeyContainer.appendChild(row);
+                
+                // 为新添加的行绑定事件
+                const toggleBtn = row.querySelector('.toggle-private-key');
+                toggleBtn.addEventListener('click', togglePrivateKeyVisibility);
+                
+                const removeBtn = row.querySelector('.remove-private-key');
+                removeBtn.addEventListener('click', removePrivateKeyRow);
+                
+                // 更新归集按钮状态
+                updateConsolidationButtonState();
+            }
+            
+            // 切换私钥可见性
+            function togglePrivateKeyVisibility(e) {
+                e.preventDefault();
+                const btn = e.currentTarget;
+                const input = btn.closest('.flex').previousElementSibling.querySelector('.private-key');
+                
+                if (input.type === 'password') {
+                    input.type = 'text';
+                    btn.innerHTML = '<i class="fas fa-eye"></i>';
+                } else {
+                    input.type = 'password';
+                    btn.innerHTML = '<i class="fas fa-eye-slash"></i>';
+                }
+            }
+            
+            // 移除私钥行
+            function removePrivateKeyRow(e) {
+                e.preventDefault();
+                const row = e.currentTarget.closest('.private-key-row');
+                
+                // 至少保留一行
+                const rows = document.querySelectorAll('.private-key-row');
+                if (rows.length <= 1) {
+                    const input = row.querySelector('.private-key');
+                    input.value = '';
+                    return;
+                }
+                
+                row.classList.add('opacity-0');
+                setTimeout(() => {
+                    row.remove();
+                    // 更新归集按钮状态
+                    updateConsolidationButtonState();
+                }, 300);
+            }
+            
+            // 复制目标地址
+            copyTargetAddressBtn.addEventListener('click', function() {
+                const address = targetAddressEl.value.trim();
+                if (!address) {
+                    logMessage("目标地址为空，无法复制", "warning");
+                    return;
+                }
+                
+                navigator.clipboard.writeText(address).then(() => {
+                    logMessage(`已复制目标地址: ${address}`, "success");
+                }).catch(err => {
+                    logMessage(`复制失败: ${err}`, "error");
+                });
+            });
+            
+            // 解析私钥
+            function parsePrivateKeys() {
+                // 确保Web3已初始化
+                if (!web3) {
+                    try {
+                        initWeb3();
+                    } catch (error) {
+                        logMessage(`初始化Web3失败: ${error.message}`, "error");
+                        return [];
+                    }
+                }
+                
+                const inputs = document.querySelectorAll('.private-key');
+                const result = [];
+                let validCount = 0;
+                
+                inputs.forEach((input, index) => {
+                    const privateKey = input.value.trim();
+                    if (!privateKey) return;
+                    
+                    try {
+                        // 验证私钥格式
+                        if (!privateKey.startsWith('0x')) {
+                            throw new Error('私钥必须以0x开头');
+                        }
+                        
+                        if (privateKey.length !== 66) {
+                            throw new Error('私钥长度不正确');
+                        }
+                        
+                        // 从私钥创建钱包
+                        const wallet = web3.eth.accounts.privateKeyToAccount(privateKey);
+                        
+                        result.push({
+                            privateKey,
+                            address: wallet.address
+                        });
+                        
+                        validCount++;
+                    } catch (error) {
+                        logMessage(`第 ${index+1} 行私钥格式错误: ${error.message}`, "error");
+                    }
+                });
+                
+                if (validCount > 0) {
+                    logMessage(`已成功加载 ${validCount} 个钱包`, "success");
+                } else {
+                    logMessage("没有有效的私钥", "warning");
+                }
+                
+                return result;
+            }
+            
+            // 检查目标地址
+            function validateTargetAddress() {
+                const address = targetAddressEl.value.trim();
+                if (!address) {
+                    logMessage("请输入目标归集地址", "error");
+                    return false;
+                }
+                
+                try {
+                    // 验证地址格式
+                    const checksumAddress = web3.utils.toChecksumAddress(address);
+                    targetAddress = checksumAddress;
+                    return true;
+                } catch (error) {
+                    logMessage(`目标地址格式错误: ${error.message}`, "error");
+                    return false;
+                }
+            }
+            
+            // 开始归集
+            async function startConsolidation() {
+                // 禁用按钮
+                startConsolidationBtn.disabled = true;
+                startConsolidationBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>处理中...';
+                
+                try {
+                    // 初始化Web3
+                    if (!web3) {
+                        try {
+                            await initWeb3();
+                        } catch (error) {
+                            throw new Error(`初始化Web3失败: ${error.message}`);
+                        }
+                    }
+                    
+                    // 解析私钥
+                    privateKeys = parsePrivateKeys();
+                    if (privateKeys.length === 0) {
+                        throw new Error("没有有效的私钥");
+                    }
+                    
+                    // 验证目标地址
+                    if (!validateTargetAddress()) {
+                        throw new Error("目标地址无效");
+                    }
+                    
+                    // 验证代币合约地址
+                    const contractAddress = contractAddressEl.value.trim();
+                    if (!web3.utils.isAddress(contractAddress)) {
+                        throw new Error("代币合约地址无效");
+                    }
+                    
+                    // 初始化代币合约
+                    const tokenAbi = [
+                        {
+                            "constant": true,
+                            "inputs": [{"name": "_owner", "type": "address"}],
+                            "name": "balanceOf",
+                            "outputs": [{"name": "balance", "type": "uint256"}],
+                            "payable": false,
+                            "stateMutability": "view",
+                            "type": "function"
+                        },
+                        {
+                            "constant": true,
+                            "inputs": [],
+                            "name": "decimals",
+                            "outputs": [{"name": "", "type": "uint8"}],
+                            "payable": false,
+                            "stateMutability": "view",
+                            "type": "function"
+                        },
+                        {
+                            "constant": false,
+                            "inputs": [{"name": "_to", "type": "address"}, {"name": "_value", "type": "uint256"}],
+                            "name": "transfer",
+                            "outputs": [{"name": "", "type": "bool"}],
+                            "payable": false,
+                            "stateMutability": "nonpayable",
+                            "type": "function"
+                        }
+                    ];
+                    
+                    // 尝试创建合约实例
+                    try {
+                        tokenContract = new web3.eth.Contract(tokenAbi, contractAddress);
+                        logMessage(`代币合约初始化成功 - 地址: ${contractAddress}`);
+                    } catch (error) {
+                        throw new Error(`创建合约实例失败: ${error.message}`);
+                    }
+                    
+                    // 获取小数位数
+                    try {
+                        decimals = await tokenContract.methods.decimals().call();
+                        logMessage(`代币小数位数: ${decimals}`);
+                    } catch (error) {
+                        throw new Error(`获取代币小数位数失败: ${error.message}`);
+                    }
+                    
+                    // 获取每个钱包的余额
+                    wallets = [];
+                    let totalBalance = 0;
+                    
+                    for (let i = 0; i < privateKeys.length; i++) {
+                        const { privateKey, address } = privateKeys[i];
+                        
+                        try {
+                            // 获取ETH余额
+                            const ethBalance = await web3.eth.getBalance(address);
+                            const formattedEthBalance = web3.utils.fromWei(ethBalance, 'ether');
+                            
+                            // 获取代币余额
+                            const tokenBalance = await tokenContract.methods.balanceOf(address).call();
+                            const formattedTokenBalance = tokenBalance / (10 ** decimals);
+                            
+                            // 检查是否有足够的ETH支付Gas
+                            if (parseFloat(formattedEthBalance) < 0.001) {
+                                logMessage(`钱包 ${address} ETH余额不足 (${formattedEthBalance} ETH)，可能无法支付Gas费用`, "warning");
+                            }
+                            
+                            wallets.push({
+                                privateKey,
+                                address,
+                                ethBalance: formattedEthBalance,
+                                tokenBalance: formattedTokenBalance
+                            });
+                            
+                            totalBalance += formattedTokenBalance;
+                            
+                            logMessage(`钱包 ${address}: 代币余额 ${formattedTokenBalance}，ETH余额 ${formattedEthBalance}`);
+                        } catch (error) {
+                            logMessage(`获取钱包 ${address} 余额失败: ${error.message}`, "error");
+                            
+                            // 提供可能的错误原因
+                            if (error.message.includes("out of gas")) {
+                                logMessage("可能原因: 合约调用Gas不足", "warning");
+                            } else if (error.message.includes("invalid opcode")) {
+                                logMessage("可能原因: 合约ABI不兼容或合约方法不存在", "warning");
+                            } else if (error.message.includes("timeout") || error.message.includes("Failed to fetch")) {
+                                logMessage("可能原因: 网络连接问题或节点响应超时", "warning");
+                            }
+                        }
+                    }
+                    
+                    // 过滤掉余额为0的钱包
+                    wallets = wallets.filter(wallet => wallet.tokenBalance > 0);
+                    
+                    if (wallets.length === 0) {
+                        throw new Error("没有钱包有代币余额可以归集");
+                    }
+                    
+                    // 显示汇总信息
+                    logMessage(`总共发现 ${wallets.length} 个有余额的钱包，总代币余额: ${totalBalance}`);
+                    
+                    // 显示钱包信息
+                    updateWalletsInfo();
+                    
+                    // 显示进度条
+                    progressContainer.classList.remove('hidden');
+                    totalCountEl.textContent = wallets.length;
+                    
+                    // 立即归集
+                    await executeConsolidation();
+                } catch (error) {
+                    logMessage(`归集过程中发生错误: ${error.message}`, "error");
+                    
+                    // 提供可能的错误原因
+                    if (error.message.includes("out of gas")) {
+                        logMessage("可能原因: 合约调用Gas不足", "warning");
+                    } else if (error.message.includes("invalid opcode")) {
+                        logMessage("可能原因: 合约ABI不兼容或合约方法不存在", "warning");
+                    } else if (error.message.includes("timeout") || error.message.includes("Failed to fetch")) {
+                        logMessage("可能原因: 网络连接问题或节点响应超时", "warning");
+                    } else if (error.message.includes("Returned values aren't valid")) {
+                        logMessage("可能原因: 合约ABI不兼容或节点响应异常", "warning");
+                    }
+                    
+                    startConsolidationBtn.disabled = false;
+                    startConsolidationBtn.innerHTML = '<i class="fas fa-play mr-2"></i>开始归集代币';
+                }
+            }
+            
+            // 执行归集操作
+            async function executeConsolidation() {
+                logMessage(`开始执行归集`, "info");
+                
+                // 重置计数器
+                let successCount = 0;
+                let failedCount = 0;
+                const failedWallets = [];
+                
+                // 发送交易
+                for (let i = 0; i < wallets.length; i++) {
+                    const { privateKey, address, tokenBalance } = wallets[i];
+                    const progress = ((i + 1) / wallets.length) * 100;
+                    
+                    updateProgress(i + 1, wallets.length, progress);
+                    
+                    try {
+                        logMessage(`处理第 ${i+1}/${wallets.length} 个钱包 - 地址: ${address}, 金额: ${tokenBalance}`);
+                        
+                        // 转换金额为最小单位（使用BigNumber处理大数值）
+                        const tokenAmount = convertToWei(tokenBalance, decimals);
+                        
+                        // 从私钥创建钱包
+                        const wallet = web3.eth.accounts.privateKeyToAccount(privateKey);
+                        
+                        // 构建交易
+                        const nonce = await web3.eth.getTransactionCount(address);
+                        
+                        // 估算Gas
+                        try {
+                            const gasEstimate = await tokenContract.methods.transfer(targetAddress, tokenAmount).estimateGas({
+                                from: address
+                            });
+                            
+                            // 设置固定Gas价格为0.1 Gwei
+                            const gasPrice = web3.utils.toWei('0.12', 'gwei'); // 0.1 Gwei = 1000000000 wei
+                            
+                            // 构建交易数据
+                            const txData = tokenContract.methods.transfer(targetAddress, tokenAmount).encodeABI();
+                            
+                            // 构建原始交易
+                            const rawTx = {
+                                from: address,
+                                to: contractAddressEl.value.trim(),
+                                data: txData,
+                                gas: Math.ceil(gasEstimate * 1.5), // 增加50%作为缓冲
+                                gasPrice: gasPrice,
+                                nonce: nonce,
+                                chainId: await web3.eth.getChainId()
+                            };
+                            
+                            // 显示Gas费用估计
+                            const gasPriceGwei = web3.utils.fromWei(rawTx.gasPrice, 'gwei');
+                            const gasCostEth = (rawTx.gas * rawTx.gasPrice) / 1e18;
+                            logMessage(`交易Gas估计: ${rawTx.gas} (${gasPriceGwei} Gwei), 费用: ${gasCostEth.toFixed(6)} ETH`);
+                            
+                            // 使用私钥签名交易
+                            const signedTx = await wallet.signTransaction(rawTx);
+                            
+                            // 发送签名后的交易
+                            const txReceipt = await web3.eth.sendSignedTransaction(signedTx.rawTransaction);
+                            
+                            // 显示交易结果
+                            logMessage(`交易确认成功 - TX Hash: ${txReceipt.transactionHash}, 区块: ${txReceipt.blockNumber}, Gas使用: ${txReceipt.gasUsed}`, "success");
+                            successCount++;
+                        } catch (gasError) {
+                            logMessage(`交易Gas估算失败: ${gasError.message}`, "error");
+                            
+                            // 尝试使用默认Gas值继续交易
+                            logMessage("尝试使用默认Gas值继续交易...", "warning");
+                            
+                            const gasPrice = web3.utils.toWei('0.12', 'gwei');
+                            const txData = tokenContract.methods.transfer(targetAddress, tokenAmount).encodeABI();
+                            
+                            // 构建原始交易
+                            const rawTx = {
+                                from: address,
+                                to: contractAddressEl.value.trim(),
+                                data: txData,
+                                gas: 1000000, // 默认Gas值
+                                gasPrice: gasPrice,
+                                nonce: nonce,
+                                chainId: await web3.eth.getChainId()
+                            };
+                            
+                            try {
+                                // 使用私钥签名交易
+                                const signedTx = await wallet.signTransaction(rawTx);
+                                
+                                // 发送签名后的交易
+                                const txReceipt = await web3.eth.sendSignedTransaction(signedTx.rawTransaction);
+                                
+                                // 显示交易结果
+                                logMessage(`交易确认成功 - TX Hash: ${txReceipt.transactionHash}, 区块: ${txReceipt.blockNumber}, Gas使用: ${txReceipt.gasUsed}`, "success");
+                                successCount++;
+                            } catch (sendError) {
+                                throw new Error(`发送交易失败: ${sendError.message}`);
+                            }
+                        }
+                    } catch (error) {
+                        logMessage(`发送交易时失败 - 地址: ${address}, 金额: ${tokenBalance}, 错误: ${error.message}`, "error");
+                        
+                        // 提供可能的错误原因
+                        if (error.message.includes("out of gas")) {
+                            logMessage("可能原因: 交易Gas不足", "warning");
+                        } else if (error.message.includes("invalid opcode")) {
+                            logMessage("可能原因: 合约ABI不兼容或合约方法不存在", "warning");
+                        } else if (error.message.includes("nonce too low")) {
+                            logMessage("可能原因: 交易Nonce太低，可能存在未确认的交易", "warning");
+                        } else if (error.message.includes("insufficient funds")) {
+                            logMessage("可能原因: ETH余额不足，无法支付Gas费用", "warning");
+                        }
+                        
+                        failedCount++;
+                        failedWallets.push({ address, tokenBalance, error: error.message });
+                    }
+                    
+                    // 间隔等待，避免交易拥堵
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                }
+                
+                // 显示最终结果
+                successCountEl.textContent = successCount;
+                failedCountEl.textContent = failedCount;
+                
+                if (failedWallets.length > 0) {
+                    logMessage(`归集完成 - 成功: ${successCount}, 失败: ${failedWallets.length}`, "warning");
+                    logMessage("失败记录:");
+                    failedWallets.forEach((wallet, index) => {
+                        logMessage(`  ${index+1}. 地址: ${wallet.address}, 金额: ${wallet.tokenBalance}, 错误: ${wallet.error}`, "warning");
+                    });
+                } else {
+                    logMessage(`归集完成 - 全部 ${successCount} 笔交易成功！`, "success");
+                }
+                
+                // 重置归集按钮
+                startConsolidationBtn.disabled = false;
+                startConsolidationBtn.innerHTML = '<i class="fas fa-play mr-2"></i>开始归集代币';
+            }
+            
+            // 将金额转换为Wei（使用BigNumber避免溢出）
+            function convertToWei(amount, decimals) {
+                try {
+                    // 处理小数部分
+                    let [integerPart, decimalPart = ''] = amount.toString().split('.');
+                    
+                    // 确保小数部分不超过代币精度
+                    if (decimalPart.length > decimals) {
+                        decimalPart = decimalPart.substring(0, decimals);
+                    }
+                    
+                    // 计算需要补零的数量
+                    const zerosToAdd = decimals - decimalPart.length;
+                    
+                    // 构建最终的数字字符串
+                    const fullNumber = integerPart + decimalPart + '0'.repeat(zerosToAdd);
+                    
+                    // 检查是否超过JavaScript安全整数范围
+                    if (fullNumber.length > 15) {
+                       // logMessage(`警告: 金额 ${amount} 转换后值很大 (${fullNumber})，可能接近JavaScript数值上限`, "warning");
+                    }
+                    
+                    // 转换为BN对象
+                    return web3.utils.toBN(fullNumber);
+                } catch (error) {
+                    logMessage(`转换金额失败: ${amount} (精度: ${decimals}) - 错误: ${error.message}`, "error");
+                    throw error;
+                }
+            }
+            
+            // 记录日志
+            function logMessage(message, type = "info") {
+                const logItem = document.createElement('p');
+                logItem.className = `log-item mb-1 ${type === "error" ? "error" : type === "success" ? "success" : type === "warning" ? "warning" : ""}`;
+                logItem.innerHTML = `<i class="fas ${type === "error" ? "fa-exclamation-circle" : type === "success" ? "fa-check-circle" : type === "warning" ? "fa-exclamation-triangle" : "fa-info-circle"} mr-2"></i>${message}`;
+                
+                logContainer.appendChild(logItem);
+                logContainer.scrollTop = logContainer.scrollHeight;
+            }
+            
+            // 更新进度
+            function updateProgress(current, total, percentage) {
+                progressTextEl.textContent = `${current}/${total} 笔交易`;
+                progressPercentageEl.textContent = `${percentage.toFixed(1)}%`;
+                progressBarEl.style.width = `${percentage}%`;
+            }
+            
+            // 更新钱包信息显示
+            function updateWalletsInfo() {
+                if (wallets.length === 0) {
+                    document.getElementById('wallets-info').classList.add('hidden');
+                    return;
+                }
+                
+                walletsListEl.innerHTML = '';
+                
+                wallets.forEach((wallet, index) => {
+                    const walletEl = document.createElement('div');
+                    walletEl.className = 'wallet-card p-3 bg-white border border-gray-200 rounded-lg shadow-sm';
+                    walletEl.innerHTML = `
+                        <div class="flex justify-between items-start mb-2">
+                            <div>
+                                <div class="font-medium text-blue-600">钱包 ${index + 1}</div>
+                                <div class="text-xs text-gray-500 font-mono truncate max-w-[200px]">${wallet.address}</div>
+                            </div>
+                            <div class="text-right">
+                                <div class="font-bold text-lg">${wallet.tokenBalance}</div>
+                                <div class="text-xs text-gray-500">ETH: ${wallet.ethBalance}</div>
+                            </div>
+                        </div>
+                        <div class="flex justify-between items-center text-xs">
+                            <span class="text-gray-500">准备归集</span>
+                            <button class="view-details text-blue-500 hover:text-blue-700">
+                                <i class="fas fa-eye mr-1"></i> 查看详情
+                            </button>
+                        </div>
+                    `;
+                    
+                    // 为查看详情按钮添加事件监听
+                    const viewDetailsBtn = walletEl.querySelector('.view-details');
+                    viewDetailsBtn.addEventListener('click', function() {
+                        logMessage(`钱包 ${index + 1} 详情 - 地址: ${wallet.address}, 代币余额: ${wallet.tokenBalance}, ETH余额: ${wallet.ethBalance}`);
+                    });
+                    
+                    walletsListEl.appendChild(walletEl);
+                });
+                
+                document.getElementById('wallets-info').classList.remove('hidden');
+            }
+            
+            // 更新归集按钮状态
+            function updateConsolidationButtonState() {
+                const hasValidPrivateKeys = document.querySelectorAll('.private-key').length > 0;
+                const hasValidContractAddress = contractAddressEl.value.trim() !== '';
+                const hasValidTargetAddress = targetAddressEl.value.trim() !== '';
+                
+                startConsolidationBtn.disabled = !(hasValidPrivateKeys && hasValidContractAddress && hasValidTargetAddress);
+            }
+            
+            // 为处理私钥按钮添加事件监听
+            processPrivateKeysBtn.addEventListener('click', function() {
+                // 确保Web3已初始化
+                if (!web3) {
+                    try {
+                        initWeb3();
+                    } catch (error) {
+                        logMessage(`初始化Web3失败: ${error.message}`, "error");
+                        return;
+                    }
+                }
+                processMultiplePrivateKeys();
+            });
+            
+            // 为私钥输入框添加事件监听
+            document.addEventListener('input', function(e) {
+                if (e.target.classList.contains('private-key')) {
+                    updateConsolidationButtonState();
+                }
+            });
+            
+            // 为开始归集按钮添加事件监听
+            startConsolidationBtn.addEventListener('click', startConsolidation);
+            
+            // 为合约地址和目标地址输入框添加事件监听
+            contractAddressEl.addEventListener('input', updateConsolidationButtonState);
+            targetAddressEl.addEventListener('input', updateConsolidationButtonState);
+            
+            // 初始化一个空的私钥行
+            addPrivateKeyRow();
+            
+            // 初始化按钮状态
+            updateConsolidationButtonState();
+            
+            // 自动连接到默认RPC
+            initWeb3().catch(error => {
+                logMessage(`自动连接到默认RPC失败: ${error.message}`, "error");
+            });
+        });
+    </script>
+</body>
+</html>
