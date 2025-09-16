@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>批量下级关系绑定工具 (多个号绑定一个号)</title>
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.6.0/dist/web3.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="text"],
+        button,
+        textarea {
+            margin-bottom: 15px;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        input[type="text"], textarea {
+            width: 100%;
+        }
+        textarea {
+            height: 200px;
+            resize: vertical;
+            font-family: monospace;
+            padding: 10px;
+        }
+        button {
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            font-size: 16px;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #3e8e41;
+        }
+        #output {
+            margin-top: 20px;
+            border: 1px solid #ccc;
+            padding: 12px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            height: 250px;
+            overflow-y: auto;
+            background-color: #f9f9f9;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        /* 成功提示样式 */
+        .success {
+            color: #28a745;
+            font-weight: bold;
+        }
+        /* 失败提示样式 */
+        .error {
+            color: #dc3545;
+        }
+        /* 信息提示样式 */
+        .info {
+            color: #007bff;
+        }
+        /* 警告提示样式 */
+        .warning {
+            color: #ffc107;
+        }
+
+        /* ---------------------- 新增：进度条样式 ---------------------- */
+        .progress-container {
+            width: 100%;
+            height: 24px;
+            background-color: #e9ecef;
+            border-radius: 12px;
+            margin: 15px 0;
+            overflow: hidden;
+            display: none; /* 默认隐藏，处理开始后显示 */
+        }
+        .progress-bar {
+            height: 100%;
+            width: 0%; /* 初始进度0% */
+            background: linear-gradient(90deg, #4CAF50 0%, #3e8e41 100%);
+            border-radius: 12px;
+            transition: width 0.3s ease; /* 进度变化动画 */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .progress-text {
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>批量下级关系绑定工具 (多个号绑定一个号)</h1>
+
+        <label for="contractAddress">合约地址:</label>
+        <input type="text" id="contractAddress" placeholder="例如: 0x5FbDB2315678afecb367f032d93F642f64180aa3">
+
+        <label for="parentAddress">要绑定的上级地址:</label>
+        <input type="text" id="parentAddress" placeholder="例如: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266">
+
+        <label for="privateKeys">下级私钥 (每行一个):</label>
+        <textarea id="privateKeys" placeholder="请粘贴私钥，每行一个
+例如:
+0xac0974bec39a17e36ba4a6b4d238ff944bacb4782bed5d8124391982186e5a25b
+0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d"></textarea>
+
+        <!-- 角色配置提示（帮助用户确认权限角色） -->
+        <div style="margin: -10px 0 15px; color: #666; font-size: 13px;">
+            提示：若绑定失败提示"权限不足"，需确认合约角色（默认使用DEFAULT_ADMIN_ROLE，可修改JS中role变量）
+        </div>
+
+        <button onclick="bindChildren()">批量绑定</button>
+
+        <!-- ---------------------- 新增：进度条HTML ---------------------- -->
+        <div class="progress-container" id="progressContainer">
+            <div class="progress-bar" id="progressBar">
+                <span class="progress-text" id="progressText">0%</span>
+            </div>
+        </div>
+
+        <div id="output"></div>
+    </div>
+
+    <script>
+        // 合约ABI（保持原ABI不变）
+        const abi = [
+            {
+                "anonymous": false,
+                "inputs": [{"indexed": false,"internalType": "uint8","name": "version","type": "uint8"}],
+                "name": "Initialized",
+                "type": "event"
+            },
+            {
+                "inputs": [{"internalType": "address","name": "","type": "address"}],
+                "name": "depthOf",
+                "outputs": [{"internalType": "uint256","name": "","type": "uint256"}],
+                "stateMutability": "view",
+                "type": "function",
+                "constant": true
+            },
+            {
+                "inputs": [{"internalType": "bytes32","name": "role","type": "bytes32"},{"internalType": "address","name": "account","type": "address"}],
+                "name": "hasRole",
+                "outputs": [{"internalType": "bool","name": "","type": "bool"}],
+                "stateMutability": "view",
+                "type": "function",
+                "constant": true
+            },
+            {
+                "inputs": [{"internalType": "address","name": "","type": "address"}],
+                "name": "parentOf",
+                "outputs": [{"internalType": "address","name": "","type": "address"}],
+                "stateMutability": "view",
+                "type": "function",
+                "constant": true
+            },
+            {
+                "inputs": [],
+                "name": "rootAddress",
+                "outputs": [{"internalType": "address","name": "","type": "address"}],
+                "stateMutability": "view",
+                "type": "function",
+                "constant": true
+            },
+            {
+                "inputs": [],
+                "name": "totalAddresses",
+                "outputs": [{"internalType": "uint256","name": "","type": "uint256"}],
+                "stateMutability": "view",
+                "type": "function",
+                "constant": true
+            },
+            {
+                "inputs": [{"internalType": "address","name": "_rootAddress","type": "address"},{"internalType": "address","name": "_permissionAdmin","type": "address"}],
+                "name": "initialize",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [{"internalType": "address","name": "owner","type": "address"},{"internalType": "uint256","name": "depth","type": "uint256"}],
+                "name": "getForefathers",
+                "outputs": [{"internalType": "address[]","name": "","type": "address[]"}],
+                "stateMutability": "view",
+                "type": "function",
+                "constant": true
+            },
+            {
+                "inputs": [{"internalType": "address","name": "owner","type": "address"}],
+                "name": "childrenOf",
+                "outputs": [{"internalType": "address[]","name": "","type": "address[]"}],
+                "stateMutability": "view",
+                "type": "function",
+                "constant": true
+            },
+            {
+                "inputs": [{"internalType": "address","name": "owner","type": "address"}],
+                "name": "childrenCount",
+                "outputs": [{"internalType": "uint256","name": "","type": "uint256"}],
+                "stateMutability": "view",
+                "type": "function",
+                "constant": true
+            },
+            {
+                "inputs": [{"internalType": "address","name": "parentAddr","type": "address"}],
+                "name": "makeRelation",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            }
+        ];
+
+        // 批量绑定核心函数（新增进度条逻辑）
+        async function bindChildren() {
+            // DOM元素获取（新增进度条元素）
+            const contractAddress = document.getElementById("contractAddress").value.trim();
+            const parentAddress = document.getElementById("parentAddress").value.trim();
+            const privateKeysText = document.getElementById("privateKeys").value.trim();
+            const outputDiv = document.getElementById("output");
+            // 新增：进度条相关元素
+            const progressContainer = document.getElementById("progressContainer");
+            const progressBar = document.getElementById("progressBar");
+            const progressText = document.getElementById("progressText");
+
+            // 初始化输出区域（清空历史记录）
+            outputDiv.innerHTML = `<span class="info">[${new Date().toLocaleTimeString()}] 开始处理批量绑定...</span>\n`;
+
+            try {
+                // 1. 基础环境检查（MetaMask）
+                if (!window.ethereum) {
+                    outputDiv.innerHTML += `<span class="error">\n[错误] 未检测到MetaMask！请安装钱包插件后重试。</span>`;
+                    return;
+                }
+
+                // 2. 输入合法性检查
+                if (!contractAddress) {
+                    outputDiv.innerHTML += `<span class="error">\n[错误] 请输入合约地址！</span>`;
+                    return;
+                }
+                if (!parentAddress) {
+                    outputDiv.innerHTML += `<span class="error">\n[错误] 请输入上级地址！</span>`;
+                    return;
+                }
+                if (!privateKeysText) {
+                    outputDiv.innerHTML += `<span class="error">\n[错误] 请粘贴下级私钥（每行一个）！</span>`;
+                    return;
+                }
+
+                // 3. 处理私钥列表（去空行、去空格）
+                const privateKeys = privateKeysText.split('\n')
+                    .map(key => key.trim())
+                    .filter(key => key !== "" && key.startsWith("0x")); // 只保留以0x开头的有效私钥
+
+                if (privateKeys.length === 0) {
+                    outputDiv.innerHTML += `<span class="error">\n[错误] 未找到有效私钥！私钥需以0x开头。</span>`;
+                    return;
+                }
+
+                // ---------------------- 新增：初始化进度条 ----------------------
+                progressContainer.style.display = "block"; // 显示进度条
+                progressBar.style.width = "0%"; // 初始进度0%
+                progressText.textContent = "0%"; // 初始文本
+
+                // 4. 初始化Web3和合约实例
+                const web3 = new Web3(window.ethereum);
+                const contract = new web3.eth.Contract(abi, contractAddress);
+
+                // 5. 预检查1：合约是否已初始化（避免未初始化导致的绑定失败）
+                let rootAddress;
+                try {
+                    rootAddress = await contract.methods.rootAddress().call();
+                    if (rootAddress === "0x0000000000000000000000000000000000000000") {
+                        outputDiv.innerHTML += `<span class="warning">\n[警告] 合约未初始化！需先调用initialize函数设置rootAddress。</span>`;
+                        // 可选择中断处理或继续（根据业务需求）
+                        // return; 
+                    }
+                } catch (err) {
+                    outputDiv.innerHTML += `<span class="error">\n[合约检查失败] 无法获取rootAddress：${err.message.slice(0, 100)}...</span>`;
+                    progressContainer.style.display = "none"; // 隐藏进度条
+                    return;
+                }
+
+                // 6. 预检查2：上级地址权限（默认使用DEFAULT_ADMIN_ROLE，可根据合约修改）
+                const ROLE = "0x0000000000000000000000000000000000000000000000000000000000000000"; // DEFAULT_ADMIN_ROLE
+                let parentHasPermission;
+                try {
+                    parentHasPermission = await contract.methods.hasRole(ROLE, parentAddress).call();
+                    if (!parentHasPermission) {
+                        outputDiv.innerHTML += `<span class="warning">\n[权限警告] 上级地址 ${parentAddress} 无绑定权限（需授予 ${ROLE} 角色）！</span>`;
+                        // 可选择中断处理或继续（根据业务需求）
+                        // return;
+                    }
+                } catch (err) {
+                    outputDiv.innerHTML += `<span class="error">\n[权限检查失败] 无法验证上级权限：${err.message.slice(0, 100)}...</span>`;
+                    progressContainer.style.display = "none"; // 隐藏进度条
+                    return;
+                }
+
+                // 7. 遍历私钥，批量绑定（核心逻辑 + 进度更新）
+                let successCount = 0; // 成功计数器
+                const totalCount = privateKeys.length; // 总账户数（用于计算进度）
+
+                for (let i = 0; i < totalCount; i++) {
+                    const privateKey = privateKeys[i];
+                    const index = i + 1; // 显示序号（从1开始）
+
+                    try {
+                        // 7.1 从私钥获取子账户地址
+                        const account = web3.eth.accounts.privateKeyToAccount(privateKey);
+                        const childAddress = account.address;
+                        outputDiv.innerHTML += `<span class="info">\n[${index}/${totalCount}] 处理子账户：${childAddress}</span>`;
+
+                        // 7.2 预检查3：子账户是否已绑定上级
+                        const currentParent = await contract.methods.parentOf(childAddress).call();
+                        if (currentParent !== "0x0000000000000000000000000000000000000000") {
+                            outputDiv.innerHTML += `<span class="warning">\n[跳过] 子账户已绑定上级：${currentParent}</span>`;
+                            // ---------------------- 新增：更新进度（跳过也算已处理） ----------------------
+                            const progress = Math.round((index / totalCount) * 100);
+                            progressBar.style.width = `${progress}%`;
+                            progressText.textContent = `${progress}%`;
+                            continue;
+                        }
+
+                        // 7.3 构建绑定交易
+                        const tx = contract.methods.makeRelation(parentAddress);
+                        
+                        // 7.4 估算Gas（避免Gas不足）
+                        let gas, gasPrice;
+                        try {
+                            gas = await tx.estimateGas({ from: childAddress });
+                            gasPrice = await web3.eth.getGasPrice();
+                            outputDiv.innerHTML += `<span class="info">\n[Gas信息] 估算Gas: ${gas}, GasPrice: ${web3.utils.fromWei(gasPrice, 'gwei')} Gwei</span>`;
+                        } catch (gasErr) {
+                            outputDiv.innerHTML += `<span class="error">\n[Gas估算失败] ${gasErr.message.slice(0, 100)}...</span>`;
+                            // ---------------------- 新增：更新进度（失败也算已处理） ----------------------
+                            const progress = Math.round((index / totalCount) * 100);
+                            progressBar.style.width = `${progress}%`;
+                            progressText.textContent = `${progress}%`;
+                            continue;
+                        }
+
+                        // 7.5 签名交易（使用子账户私钥）
+                        const signedTx = await web3.eth.accounts.signTransaction(
+                            {
+                                to: contractAddress,
+                                data: tx.encodeABI(),
+                                gas: gas,
+                                gasPrice: gasPrice,
+                                chainId: await web3.eth.getChainId() // 增加链ID，避免链不匹配
+                            },
+                            privateKey
+                        );
+
+                        // 7.6 发送交易并等待确认
+                        const transaction = await web3.eth.sendSignedTransaction(signedTx.rawTransaction);
+                        
+                        // 7.7 绑定成功：绿色高亮提示
+                        successCount++;
+                        outputDiv.innerHTML += `
+                            <span class="success">\n[绑定成功 ✅] 
+                            子账户 ${childAddress} → 上级 ${parentAddress} 
+                            交易哈希：<a href="https://etherscan.io/tx/${transaction.transactionHash}" target="_blank">${transaction.transactionHash}</a>
+                            </span>
+                        `;
+
+                    } catch (err) {
+                        // 7.8 错误分类处理（精准提示）
+                        let errorMsg = err.message || JSON.stringify(err.data);
+                        if (errorMsg.includes("invalid child")) {
+                            outputDiv.innerHTML += `<span class="error">\n[绑定失败 ❌] 无效子账户（可能未注册或不满足合约规则）</span>`;
+                        } else if (errorMsg.includes("revert")) {
+                            outputDiv.innerHTML += `<span class="error">\n[绑定失败 ❌] 合约拒绝：${errorMsg.slice(0, 120)}...</span>`;
+                        } else if (errorMsg.includes("private key")) {
+                            outputDiv.innerHTML += `<span class="error">\n[绑定失败 ❌] 私钥无效：${errorMsg.slice(0, 80)}...</span>`;
+                        } else {
+                            outputDiv.innerHTML += `<span class="error">\n[绑定失败 ❌] 未知错误：${errorMsg.slice(0, 100)}...</span>`;
+                        }
+                    } finally {
+                        // ---------------------- 新增：最终确保进度更新（无论成功/失败/跳过） ----------------------
+                        const progress = Math.round((index / totalCount) * 100);
+                        progressBar.style.width = `${progress}%`;
+                        progressText.textContent = `${progress}%`;
+                    }
+                }
+
+                // 8. 批量处理完成：汇总统计
+                outputDiv.innerHTML += `
+                    \n\n<span class="info">[处理完成] 总计${totalCount}个账户，成功${successCount}个，失败${totalCount - successCount}个</span>
+                    <span class="info">提示：成功交易可点击哈希在区块链浏览器查看详情</span>
+                `;
+                // 处理完成后保持进度条显示100%（可选：也可设置一段时间后隐藏）
+                progressBar.style.width = "100%";
+                progressText.textContent = "100% (完成)";
+
+            } catch (globalErr) {
+                // 全局错误捕获（如Web3初始化失败）
+                outputDiv.innerHTML += `<span class="error">\n[全局错误] 程序异常：${globalErr.message.slice(0, 150)}...</span>`;
+                progressContainer.style.display = "none"; // 全局错误时隐藏进度条
+            }
+        }
+    </script>
+</body>
+</html>

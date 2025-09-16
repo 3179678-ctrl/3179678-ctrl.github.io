@@ -2,18 +2,30 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>WEB3智能助手</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
+        html {
+            max-width: 1024px;
+            margin: 0 auto;
+            height: 100vh;
+            overflow-x: hidden;
+        }
+        body {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
         .gradient-bg {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #5b6ef5 0%, #8044c5 100%);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
         }
         .nav-item {
             transition: all 0.3s ease;
-            position: relative;
             flex: 1;
+            cursor: pointer;
         }
         .nav-item.active {
             color: #4f46e5;
@@ -22,102 +34,130 @@
             transform: translateY(-5px) scale(1.1);
         }
         .nav-icon {
-            transition: all 0.3s ease;
-        }
-        .nav-badge {
-            transition: all 0.3s ease;
+            transition: all 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
         }
         .nav-indicator {
             width: 4px;
             height: 4px;
+            border-radius: 50%;
             transition: all 0.3s ease;
+            background-color: transparent;
         }
         .nav-item.active .nav-indicator {
             width: 20px;
             background-color: #4f46e5;
+            border-radius: 2px;
         }
+        /* 关键修复：允许容器滚动 */
         .iframe-container {
-            height: calc(100vh - 120px);
-            margin-bottom: 72px;
+            flex: 1;
             position: relative;
-            overflow: hidden;
+            overflow-y: auto; /* 允许垂直滚动 */
+            margin-bottom: 64px;
+            -webkit-overflow-scrolling: touch; /* 优化移动端滚动体验 */
         }
         iframe {
             transition: opacity 0.3s ease, transform 0.3s ease;
-            position: absolute;
-            top: 0;
-            left: 0;
+            width: 100%;
+            min-height: 100%; /* 使用最小高度而非固定高度 */
+            border: none;
         }
         iframe:not(.active) {
-            opacity: 0;
-            height: 0;
-            transform: translateY(20px);
-            pointer-events: none;
+            display: none; /* 非激活状态直接隐藏，避免影响滚动 */
         }
-        iframe.active {
-            opacity: 1;
-            transform: translateY(0);
+        .nav-item:hover {
+            color: #4f46e5;
         }
         .nav-item:hover .nav-icon {
             transform: translateY(-3px);
         }
+        nav {
+            height: 64px;
+            display: flex;
+            align-items: center;
+        }
+        @media (max-width: 480px) {
+            .nav-icon i {
+                font-size: 1.1rem;
+            }
+            .nav-item span {
+                font-size: 0.65rem;
+            }
+            .iframe-container {
+                margin-bottom: 56px;
+            }
+            nav {
+                height: 56px;
+            }
+        }
     </style>
 </head>
 <body class="bg-gray-50">
-    <!-- 顶部导航 -->
-    <header class="gradient-bg text-white shadow-lg">
-        <div class="container mx-auto px-2 py-1">
-            <h5 class="text-xl font-bold text-center">WEB3智能助手</h5>
+    <header class="gradient-bg text-white">
+        <div class="container mx-auto px-4 py-3">
+            <h2 class="text-xl font-bold text-center">WEB3智能助手</h2>
         </div>
     </header>
 
-    <!-- 主内容区 -->
     <main class="iframe-container" id="mainContent">
-        <iframe id="transferFrame" src="02.html" class="active w-full h-full border-none"></iframe>
-        <iframe id="convertFrame" src="06.html" class="w-full h-full border-none"></iframe>
-        <iframe id="collectFrame" src="03.html" class="w-full h-full border-none"></iframe>
-        <iframe id="walletFrame" src="05.html" class="w-full h-full border-none"></iframe>    
-	</main>
+        <iframe id="transferFrame" src="02.html" class="active" data-name="批量转账"></iframe>
+        <iframe id="convertFrame" src="06.html" class="" data-name="单位转换"></iframe>
+        <iframe id="collectFrame" src="03.html" class="" data-name="ID绑定深度"></iframe>
+        <iframe id="walletGenFrame" src="05.html" class="" data-name="钱包生成"></iframe>
+        <iframe id="multiBindFrame" src="01.html" class="" data-name="多号绑一工具"></iframe>
+        <iframe id="chainToolFrame" src="04.html" class="" data-name="上下连串工具"></iframe>
+    </main>
 
-    <!-- 增强版底部导航 -->
     <nav class="fixed bottom-0 left-0 right-0 bg-white shadow-lg border-t border-gray-200 z-50">
-        <div class="container mx-auto">
-            <div class="flex justify-around">
-                <!-- 批量转账 -->
-                <a href="#transfer" class="nav-item active py-3 px-2 text-center relative">
+        <div class="container mx-auto w-full">
+            <div class="flex justify-around h-full">
+                <div class="nav-item active py-2 px-1 text-center relative" data-target="transferFrame">
                     <div class="nav-icon mb-1 relative">
                         <i class="fas fa-exchange-alt text-xl"></i>
-                        <div class="nav-indicator absolute bottom-0 left-1/2 transform -translate-x-1/2 rounded-full"></div>
+                        <div class="nav-indicator absolute bottom-0 left-1/2 transform -translate-x-1/2"></div>
                     </div>
                     <span class="text-xs">批量转账</span>
-                </a>
+                </div>
                 
-                <!-- 单位转换 -->
-                <a href="#convert" class="nav-item py-3 px-2 text-center text-gray-500 relative">
+                <div class="nav-item py-2 px-1 text-center text-gray-500 relative" data-target="convertFrame">
                     <div class="nav-icon mb-1 relative">
                         <i class="fas fa-calculator text-xl"></i>
-                        <div class="nav-indicator absolute bottom-0 left-1/2 transform -translate-x-1/2 rounded-full"></div>
+                        <div class="nav-indicator absolute bottom-0 left-1/2 transform -translate-x-1/2"></div>
                     </div>
                     <span class="text-xs">单位转换</span>
-                </a>
+                </div>
                 
-                <!-- 代币归集 -->
-                <a href="#collect" class="nav-item py-3 px-2 text-center text-gray-500 relative">
+                <div class="nav-item py-2 px-1 text-center text-gray-500 relative" data-target="collectFrame">
                     <div class="nav-icon mb-1 relative">
                         <i class="fas fa-coins text-xl"></i>
-                        <div class="nav-indicator absolute bottom-0 left-1/2 transform -translate-x-1/2 rounded-full"></div>
+                        <div class="nav-indicator absolute bottom-0 left-1/2 transform -translate-x-1/2"></div>
                     </div>
-                    <span class="text-xs">代币归集</span>
-                </a>
+                    <span class="text-xs">绑定深度</span>
+                </div>
                 
-                <!-- 钱包生成 -->
-                <a href="#wallet" class="nav-item py-3 px-2 text-center text-gray-500 relative">
+                <div class="nav-item py-2 px-1 text-center text-gray-500 relative" data-target="walletGenFrame">
                     <div class="nav-icon mb-1 relative">
                         <i class="fas fa-wallet text-xl"></i>
-                        <div class="nav-indicator absolute bottom-0 left-1/2 transform -translate-x-1/2 rounded-full"></div>
+                        <div class="nav-indicator absolute bottom-0 left-1/2 transform -translate-x-1/2"></div>
                     </div>
                     <span class="text-xs">钱包生成</span>
-                </a>				
+                </div>
+                
+                <div class="nav-item py-2 px-1 text-center text-gray-500 relative" data-target="multiBindFrame">
+                    <div class="nav-icon mb-1 relative">
+                        <i class="fas fa-link text-xl"></i>
+                        <div class="nav-indicator absolute bottom-0 left-1/2 transform -translate-x-1/2"></div>
+                    </div>
+                    <span class="text-xs">多号绑一</span>
+                </div>
+                
+                <div class="nav-item py-2 px-1 text-center text-gray-500 relative" data-target="chainToolFrame">
+                    <div class="nav-icon mb-1 relative">
+                        <i class="fas fa-sitemap text-xl"></i>
+                        <div class="nav-indicator absolute bottom-0 left-1/2 transform -translate-x-1/2"></div>
+                    </div>
+                    <span class="text-xs">上下连串</span>
+                </div>
             </div>
         </div>
     </nav>
@@ -125,59 +165,66 @@
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const navItems = document.querySelectorAll('.nav-item');
-            const frames = {
-                'transfer': document.getElementById('transferFrame'),
-                'convert': document.getElementById('convertFrame'),
-                'collect': document.getElementById('collectFrame'),
-                'wallet': document.getElementById('walletFrame')
-            };
-            
-            // 初始化导航状态
-            function setActiveNav(target) {
-                // 验证目标是否有效
-                if (!frames[target]) {
-                    target = 'transfer'; // 默认显示转账页面
-                }
-                
+            const allFrames = document.querySelectorAll('#mainContent iframe');
+            const frameMap = {};
+            allFrames.forEach(frame => {
+                frameMap[frame.id] = frame;
+            });
+
+            function switchToTarget(targetFrameId) {
+                const targetFrame = frameMap[targetFrameId] || frameMap.transferFrame;
+                const targetFrameIdValid = targetFrame.id;
+
                 navItems.forEach(item => {
-                    const linkTarget = item.getAttribute('href').substring(1);
-                    if (linkTarget === target) {
+                    const itemTarget = item.dataset.target;
+                    if (itemTarget === targetFrameIdValid) {
                         item.classList.add('active');
                         item.classList.remove('text-gray-500');
-                        frames[linkTarget].classList.add('active');
-                        frames[linkTarget].style.height = '100%';
                     } else {
                         item.classList.remove('active');
                         item.classList.add('text-gray-500');
-                        frames[linkTarget].classList.remove('active');
-                        // 延迟设置高度为0，等待过渡效果完成
-                        setTimeout(() => {
-                            if (!frames[linkTarget].classList.contains('active')) {
-                                frames[linkTarget].style.height = '0';
-                            }
-                        }, 300);
                     }
                 });
+
+                allFrames.forEach(frame => {
+                    if (frame.id === targetFrameIdValid) {
+                        frame.classList.add('active');
+                        frame.style.display = 'block';
+                        // 滚动到顶部
+                        document.querySelector('.iframe-container').scrollTop = 0;
+                    } else {
+                        frame.classList.remove('active');
+                        frame.style.display = 'none';
+                    }
+                });
+
+                const frameName = targetFrame.dataset.name || 'WEB3智能助手';
+                window.history.pushState({}, frameName, `#${targetFrameIdValid}`);
             }
-            
-            // 点击导航切换内容
+
             navItems.forEach(item => {
-                item.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    const target = this.getAttribute('href').substring(1);
-                    setActiveNav(target);
-                    window.history.pushState({}, '', this.getAttribute('href'));
+                item.addEventListener('click', () => {
+                    const targetFrameId = item.dataset.target;
+                    switchToTarget(targetFrameId);
                 });
             });
-            
-            // 处理浏览器前进/后退
-            window.addEventListener('popstate', function() {
-                const target = window.location.hash.substring(1) || 'transfer';
-                setActiveNav(target);
+
+            window.addEventListener('popstate', () => {
+                const hash = window.location.hash.slice(1);
+                switchToTarget(hash);
             });
-            
-            // 初始化显示第一个iframe
-            setActiveNav('transfer');
+
+            // 初始化
+            switchToTarget('transferFrame');
+
+            // 监听iframe内容高度变化，确保滚动正常
+            allFrames.forEach(frame => {
+                frame.addEventListener('load', () => {
+                    // 当iframe内容加载完成后，确保父容器可以滚动
+                    const container = document.querySelector('.iframe-container');
+                    container.style.overflowY = 'auto';
+                });
+            });
         });
     </script>
 </body>

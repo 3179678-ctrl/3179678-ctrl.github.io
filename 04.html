@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>批量上下串联关系绑定工具</title>
+<script src="https://cdn.jsdelivr.net/npm/web3@1.6.0/dist/web3.min.js"></script>
+<style>
+body {
+font-family: Arial, sans-serif;
+margin: 20px;
+}
+.container {
+max-width: 800px;
+margin: 0 auto;
+}
+label {
+display: block;
+margin-bottom: 5px;
+font-weight: bold;
+}
+input[type="text"],
+button,
+textarea {
+margin-bottom: 15px;
+padding: 8px;
+border: 1px solid #ccc;
+border-radius: 4px;
+box-sizing: border-box;
+width: 100%;
+}
+textarea {
+height: 150px;
+font-family: monospace;
+}
+button {
+cursor: pointer;
+background-color: #4CAF50;
+color: white;
+border: none;
+padding: 10px;
+font-size: 16px;
+transition: background-color 0.3s;
+}
+button:hover {
+background-color: #3e8e41;
+}
+#output {
+margin-top: 20px;
+border: 1px solid #ccc;
+padding: 10px;
+border-radius: 4px;
+white-space: pre-wrap;
+max-height: 300px;
+overflow-y: auto;
+background-color: #f9f9f9;
+}
+
+/* 进度条样式 */
+.progress-container {
+margin: 15px 0;
+display: none; /* 默认隐藏 */
+}
+.progress-bar-outer {
+width: 100%;
+height: 8px;
+background-color: #eee;
+border-radius: 4px;
+overflow: hidden;
+margin-bottom: 5px;
+}
+.progress-bar-inner {
+height: 100%;
+width: 0%;
+background-color: #4CAF50;
+transition: width 0.3s ease;
+}
+.progress-text {
+font-size: 14px;
+color: #666;
+text-align: right;
+}
+</style>
+</head>
+<body>
+<div class="container">
+<h1>批量上下串联级关系绑定工具</h1>
+
+<label for="contractAddress">合约地址:</label>
+<input type="text" id="contractAddress" placeholder="输入合约地址">
+
+<label for="rootAddress">根地址 (上级地址):</label>
+<input type="text" id="rootAddress" placeholder="输入根地址">
+
+<label for="privateKeys">私钥列表 (每行一个私钥):</label>
+<textarea id="privateKeys" placeholder="在此粘贴私钥，每行一个"></textarea>
+
+<button onclick="batchBindRelations()">批量绑定</button>
+
+<!-- 进度条 -->
+<div class="progress-container" id="progressContainer">
+    <div class="progress-bar-outer">
+        <div class="progress-bar-inner" id="progressBar"></div>
+    </div>
+    <div class="progress-text" id="progressText">0/0 (0%)</div>
+</div>
+
+<div id="output"></div>
+</div>
+
+<script>
+// 合约ABI
+const abi = [
+{
+"anonymous": false,
+"inputs": [
+{
+"indexed": false,
+"internalType": "uint8",
+"name": "version",
+"type": "uint8"
+}
+],
+"name": "Initialized",
+"type": "event"
+},
+{
+"inputs": [
+{
+"internalType": "address",
+"name": "",
+"type": "address"
+}
+],
+"name": "depthOf",
+"outputs": [
+{
+"internalType": "uint256",
+"name": "",
+"type": "uint256"
+}
+],
+"stateMutability": "view",
+"type": "function",
+"constant": true
+},
+{
+"inputs": [
+{
+"internalType": "bytes32",
+"name": "role",
+"type": "bytes32"
+},
+{
+"internalType": "address",
+"name": "account",
+"type": "address"
+}
+],
+"name": "hasRole",
+"outputs": [
+{
+"internalType": "bool",
+"name": "",
+"type": "bool"
+}
+],
+"stateMutability": "view",
+"type": "function",
+"constant": true
+},
+{
+"inputs": [
+{
+"internalType": "address",
+"name": "",
+"type": "address"
+}
+],
+"name": "parentOf",
+"outputs": [
+{
+"internalType": "address",
+"name": "",
+"type": "address"
+}
+],
+"stateMutability": "view",
+"type": "function",
+"constant": true
+},
+{
+"inputs": [],
+"name": "rootAddress",
+"outputs": [
+{
+"internalType": "address",
+"name": "",
+"type": "address"
+}
+],
+"stateMutability": "view",
+"type": "function",
+"constant": true
+},
+{
+"inputs": [],
+"name": "totalAddresses",
+"outputs": [
+{
+"internalType": "uint256",
+"name": "",
+"type": "uint256"
+}
+],
+"stateMutability": "view",
+"type": "function",
+"constant": true
+},
+{
+"inputs": [
+{
+"internalType": "address",
+"name": "_rootAddress",
+"type": "address"
+},
+{
+"internalType": "address",
+"name": "_permissionAdmin",
+"type": "address"
+}
+],
+"name": "initialize",
+"outputs": [],
+"stateMutability": "nonpayable",
+"type": "function"
+},
+{
+"inputs": [
+{
+"internalType": "address",
+"name": "owner",
+"type": "address"
+},
+{
+"internalType": "uint256",
+"name": "depth",
+"type": "uint256"
+}
+],
+"name": "getForefathers",
+"outputs": [
+{
+"internalType": "address[]",
+"name": "",
+"type": "address[]"
+}
+],
+"stateMutability": "view",
+"type": "function",
+"constant": true
+},
+{
+"inputs": [
+{
+"internalType": "address",
+"name": "owner",
+"type": "address"
+}
+],
+"name": "childrenOf",
+"outputs": [
+{
+"internalType": "address[]",
+"name": "",
+"type": "address[]"
+}
+],
+"stateMutability": "view",
+"type": "function",
+"constant": true
+},
+{
+"inputs": [
+{
+"internalType": "address",
+"name": "owner",
+"type": "address"
+}
+],
+"name": "childrenCount",
+"outputs": [
+{
+"internalType": "uint256",
+"name": "",
+"type": "uint256"
+}
+],
+"stateMutability": "view",
+"type": "function",
+"constant": true
+},
+{
+"inputs": [
+{
+"internalType": "address",
+"name": "parentAddr",
+"type": "address"
+}
+],
+"name": "makeRelation",
+"outputs": [],
+"stateMutability": "nonpayable",
+"type": "function"
+}
+];
+
+async function batchBindRelations() {
+const contractAddress = document.getElementById("contractAddress").value;
+const rootAddress = document.getElementById("rootAddress").value;
+const privateKeysText = document.getElementById("privateKeys").value;
+const outputDiv = document.getElementById("output");
+const progressContainer = document.getElementById("progressContainer");
+const progressBar = document.getElementById("progressBar");
+const progressText = document.getElementById("progressText");
+
+// 清空输出区域
+outputDiv.innerText = "";
+// 重置进度条
+progressBar.style.width = "0%";
+progressText.textContent = "0/0 (0%)";
+progressContainer.style.display = "none";
+
+try {
+if (!window.ethereum) {
+outputDiv.innerText = "请安装 MetaMask 钱包!";
+return;
+}
+
+if (!contractAddress) {
+outputDiv.innerText = "请输入合约地址!";
+return;
+}
+
+if (!rootAddress) {
+outputDiv.innerText = "请输入根地址!";
+return;
+}
+
+if (!privateKeysText.trim()) {
+outputDiv.innerText = "请在文本框中输入私钥!";
+return;
+}
+
+// 从文本框获取私钥列表，按行分割并过滤空行
+const privateKeys = privateKeysText.split('\n')
+.map(key => key.trim())
+.filter(key => key !== "");
+
+if (privateKeys.length === 0) {
+outputDiv.innerText = "没有有效的私钥!";
+return;
+}
+
+// 显示进度条
+progressContainer.style.display = "block";
+outputDiv.innerText = `开始处理 ${privateKeys.length} 个私钥...\n`;
+
+const web3 = new Web3(window.ethereum);
+const contract = new web3.eth.Contract(abi, contractAddress);
+let currentParent = rootAddress;
+const total = privateKeys.length;
+
+for (let i = 0; i < total; i++) {
+const privateKey = privateKeys[i];
+
+try {
+// 从私钥获取账户地址
+const account = web3.eth.accounts.privateKeyToAccount(privateKey);
+const accountAddress = account.address;
+
+outputDiv.innerText += `\n正在处理第 ${i + 1} 个私钥 (${accountAddress})...`;
+
+// 准备交易
+const tx = contract.methods.makeRelation(currentParent);
+const gas = await tx.estimateGas({ from: accountAddress });
+const gasPrice = await web3.eth.getGasPrice();
+
+// 签名交易
+const signedTx = await web3.eth.accounts.signTransaction(
+{
+to: contractAddress,
+data: tx.encodeABI(),
+gas: gas,
+gasPrice: gasPrice,
+},
+privateKey
+);
+
+// 发送交易
+const transaction = await web3.eth.sendSignedTransaction(signedTx.rawTransaction);
+outputDiv.innerText += `\n✅ 绑定成功. 交易哈希: ${transaction.transactionHash}`;
+
+// 当前账户成为下一个账户的上级
+currentParent = accountAddress;
+} catch (error) {
+outputDiv.innerText += `\n❌ 处理失败: ${error.message || error}`;
+}
+
+// 更新进度条
+const progress = ((i + 1) / total) * 100;
+progressBar.style.width = `${progress}%`;
+progressText.textContent = `${i + 1}/${total} (${Math.round(progress)}%)`;
+
+// 滚动到输出区域底部
+outputDiv.scrollTop = outputDiv.scrollHeight;
+}
+
+outputDiv.innerText += "\n\n批量绑定操作已完成!";
+} catch (error) {
+outputDiv.innerText = `发生错误: ${error.message || error}`;
+// 出错时隐藏进度条
+progressContainer.style.display = "none";
+}
+}
+</script>
+</body>
+</html>
