@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>打窝船控制器（蓝牙+WiFi）</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#165DFF',
+                        secondary: '#FF7D00',
+                        ble: '#7B61FF', // 蓝牙主题色
+                    },
+                }
+            }
+        }
+    </script>
+    
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .btn-control {
+                @apply flex items-center justify-center rounded-xl shadow-lg transition-all duration-200 active:scale-95;
+            }
+            .btn-direction {
+                @apply btn-control bg-primary text-white text-2xl md:text-3xl;
+            }
+            .btn-action {
+                @apply btn-control text-white text-xl;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen p-4 font-sans">
+    <div class="max-w-md mx-auto bg-white rounded-2xl shadow-xl overflow-hidden">
+        <!-- 顶部状态栏 -->
+        <div class="bg-primary text-white p-4">
+            <h1 class="text-xl font-bold flex items-center">
+                <i class="fa fa-ship mr-2"></i>打窝船控制器
+            </h1>
+            <div id="connectionStatus" class="mt-2 text-sm bg-white/20 rounded-full px-3 py-1 inline-flex items-center">
+                <i class="fa fa-circle-o mr-1"></i>
+                <span>未连接</span>
+            </div>
+        </div>
+        
+        <!-- 连接方式选择 -->
+        <div class="p-4 border-b border-gray-200">
+            <div class="flex items-center gap-2 mb-3">
+                <i class="fa fa-plug text-primary"></i>
+                <h2 class="font-bold">连接设置</h2>
+            </div>
+            
+            <!-- 连接模式切换 -->
+            <div class="flex gap-2 mb-3">
+                <button id="wifiModeBtn" class="flex-1 py-2 bg-primary text-white rounded-lg">
+                    <i class="fa fa-wifi mr-1"></i>WiFi
+                </button>
+                <button id="bleModeBtn" class="flex-1 py-2 bg-gray-200 text-gray-700 rounded-lg">
+                    <i class="fa fa-bluetooth mr-1"></i>蓝牙
+                </button>
+            </div>
+            
+            <!-- WiFi连接区域（默认显示） -->
+            <div id="wifiSection" class="flex gap-2">
+                <input 
+                    type="text" 
+                    id="ipAddress" 
+                    placeholder="输入ESP32的IP地址" 
+                    class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    value="192.168.4.1"
+                >
+                <button 
+                    id="wifiConnectBtn" 
+                    class="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors"
+                >
+                    连接
+                </button>
+            </div>
+            
+            <!-- 蓝牙连接区域（默认隐藏） -->
+            <div id="bleSection" class="hidden">
+                <button 
+                    id="bleConnectBtn" 
+                    class="w-full bg-ble text-white px-4 py-2 rounded-lg hover:bg-ble/90 transition-colors"
+                >
+                    <i class="fa fa-search mr-1"></i>扫描蓝牙设备
+                </button>
+                <div id="bleDevices" class="mt-2 max-h-32 overflow-y-auto text-sm"></div>
+            </div>
+        </div>
+        
+        <!-- 速度控制 -->
+        <div class="p-4 border-b border-gray-200">
+            <div class="flex justify-between items-center mb-2">
+                <div class="flex items-center gap-2">
+                    <i class="fa fa-tachometer text-primary"></i>
+                    <h2 class="font-bold">速度调节</h2>
+                </div>
+                <span id="speedValue" class="bg-gray-100 px-3 py-1 rounded-full text-sm">200</span>
+            </div>
+            <input 
+                type="range" 
+                id="speedSlider" 
+                min="50" 
+                max="255" 
+                value="200" 
+                class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-primary"
+            >
+        </div>
+        
+        <!-- 控制按钮区 -->
+        <div class="p-4">
+            <div class="flex justify-between items-center mb-3">
+                <i class="fa fa-arrows text-primary"></i>
+                <h2 class="font-bold">方向控制</h2>
+            </div>
+            
+            <!-- 方向按钮网格 -->
+            <div class="grid grid-cols-3 gap-2 mb-4" style="aspect-ratio: 3/3;">
+                <div></div>
+                <button id="forwardBtn" class="btn-direction bg-primary">
+                    <i class="fa fa-arrow-up"></i>
+                </button>
+                <div></div>
+                
+                <button id="leftBtn" class="btn-direction bg-primary">
+                    <i class="fa fa-arrow-left"></i>
+                </button>
+                <button id="stopBtn" class="btn-direction bg-gray-500">
+                    <i class="fa fa-stop"></i>
+                </button>
+                <button id="rightBtn" class="btn-direction bg-primary">
+                    <i class="fa fa-arrow-right"></i>
+                </button>
+                
+                <div></div>
+                <button id="backwardBtn" class="btn-direction bg-primary">
+                    <i class="fa fa-arrow-down"></i>
+                </button>
+                <div></div>
+            </div>
+            
+            <!-- 投饵按钮 -->
+            <button id="feedBtn" class="btn-action w-full py-4 bg-secondary hover:bg-secondary/90">
+                <i class="fa fa-cubes mr-2"></i>投饵
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // 全局变量
+        let connectionType = 'wifi'; // 默认为WiFi模式
+        let websocket = null;        // WiFi连接对象
+        let bleServer = null;        // 蓝牙连接对象
+        let bleCharacteristic = null;// 蓝牙特征值
+        let isConnected = false;     // 连接状态
+
+        // DOM元素
+        const connectionStatus = document.getElementById('connectionStatus');
+        const wifiModeBtn = document.getElementById('wifiModeBtn');
+        const bleModeBtn = document.getElementById('bleModeBtn');
+        const wifiSection = document.getElementById('wifiSection');
+        const bleSection = document.getElementById('bleSection');
+        const ipAddress = document.getElementById('ipAddress');
+        const wifiConnectBtn = document.getElementById('wifiConnectBtn');
+        const bleConnectBtn = document.getElementById('bleConnectBtn');
+        const bleDevices = document.getElementById('bleDevices');
+        const speedSlider = document.getElementById('speedSlider');
+        const speedValue = document.getElementById('speedValue');
+        const forwardBtn = document.getElementById('forwardBtn');
+        const backwardBtn = document.getElementById('backwardBtn');
+        const leftBtn = document.getElementById('leftBtn');
+        const rightBtn = document.getElementById('rightBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const feedBtn = document.getElementById('feedBtn');
+
+        // BLE配置（需与ESP32代码中的UUID一致）
+        const BLE_SERVICE_UUID = '4fafc201-1fb5-459e-8fcc-c5c9c331914b';
+        const BLE_CHARACTERISTIC_UUID = 'beb5483e-36e1-4688-b7f5-ea07361b26a8';
+        const BLE_DEVICE_NAME = 'ESP32打窝船'; // 设备名称
+
+        // 更新连接状态显示
+        function updateConnectionStatus(status, connected) {
+            isConnected = connected;
+            const icon = connected ? 'fa-check-circle' : 
+                         (connectionType === 'wifi' ? 'fa-wifi' : 'fa-bluetooth');
+            const colorClass = connected ? 'bg-green-500/20 text-green-100' : 'bg-white/20';
+            
+            connectionStatus.innerHTML = `
+                <i class="fa ${icon} mr-1"></i>
+                <span>${status}</span>
+            `;
+            connectionStatus.className = `mt-2 text-sm rounded-full px-3 py-1 inline-flex items-center ${colorClass}`;
+            
+            // 更新连接按钮文本
+            wifiConnectBtn.textContent = connectionType === 'wifi' && connected ? '断开' : '连接';
+        }
+
+        // 切换连接模式（WiFi/蓝牙）
+        function switchMode(mode) {
+            // 先断开当前连接
+            if (isConnected) {
+                if (connectionType === 'wifi' && websocket) websocket.close();
+                if (connectionType === 'ble' && bleServer) bleServer.disconnect();
+                updateConnectionStatus('已断开', false);
+            }
+            
+            // 更新UI
+            connectionType = mode;
+            if (mode === 'wifi') {
+                wifiModeBtn.className = 'flex-1 py-2 bg-primary text-white rounded-lg';
+                bleModeBtn.className = 'flex-1 py-2 bg-gray-200 text-gray-700 rounded-lg';
+                wifiSection.classList.remove('hidden');
+                bleSection.classList.add('hidden');
+            } else {
+                wifiModeBtn.className = 'flex-1 py-2 bg-gray-200 text-gray-700 rounded-lg';
+                bleModeBtn.className = 'flex-1 py-2 bg-ble text-white rounded-lg';
+                wifiSection.classList.add('hidden');
+                bleSection.classList.remove('hidden');
+            }
+        }
+
+        // 发送命令到设备（通用方法，自动判断连接类型）
+        function sendCommand(command) {
+            if (!isConnected) {
+                alert('请先连接设备');
+                return;
+            }
+            
+            try {
+                if (connectionType === 'wifi') {
+                    websocket.send(command);
+                } else {
+                    // 蓝牙发送（字符串转Uint8Array）
+                    const encoder = new TextEncoder();
+                    bleCharacteristic.writeValue(encoder.encode(command));
+                }
+                console.log('发送命令:', command);
+            } catch (error) {
+                console.error('发送失败:', error);
+                updateConnectionStatus('连接异常', false);
+            }
+        }
+
+        // -------------------------- WiFi连接逻辑 --------------------------
+        wifiConnectBtn.addEventListener('click', () => {
+            if (isConnected) {
+                // 断开WiFi连接
+                websocket.close();
+                updateConnectionStatus('WiFi已断开', false);
+            } else {
+                // 建立WiFi连接
+                const ip = ipAddress.value.trim();
+                if (!ip) {
+                    alert('请输入IP地址');
+                    return;
+                }
+                const wsUrl = `ws://${ip}:80/ws`;
+                updateConnectionStatus('WiFi连接中...', false);
+                
+                websocket = new WebSocket(wsUrl);
+                websocket.onopen = () => {
+                    updateConnectionStatus('WiFi已连接', true);
+                    sendCommand(`speed=${speedSlider.value}`); // 同步速度
+                };
+                websocket.onclose = () => updateConnectionStatus('WiFi已断开', false);
+                websocket.onerror = () => updateConnectionStatus('WiFi连接失败', false);
+                websocket.onmessage = (event) => {
+                    connectionStatus.innerHTML = `<i class="fa fa-info-circle mr-1"></i><span>${event.data}</span>`;
+                };
+            }
+        });
+
+        // -------------------------- 蓝牙连接逻辑 --------------------------
+        bleConnectBtn.addEventListener('click', async () => {
+            if (isConnected) {
+                // 断开蓝牙连接
+                bleServer.disconnect();
+                updateConnectionStatus('蓝牙已断开', false);
+                bleDevices.innerHTML = '';
+            } else {
+                // 扫描蓝牙设备
+                try {
+                    bleDevices.innerHTML = '<div class="p-2 text-center">扫描中...</div>';
+                    
+                    // 请求蓝牙设备（过滤名称和服务）
+                    const device = await navigator.bluetooth.requestDevice({
+                        filters: [
+                            { name: BLE_DEVICE_NAME }, // 按名称过滤
+                            { services: [BLE_SERVICE_UUID] } // 按服务UUID过滤
+                        ],
+                        optionalServices: [BLE_SERVICE_UUID]
+                    });
+
+                    // 连接GATT服务器
+                    bleServer = await device.gatt.connect();
+                    updateConnectionStatus('蓝牙连接中...', false);
+                    
+                    // 获取服务和特征值
+                    const service = await bleServer.getPrimaryService(BLE_SERVICE_UUID);
+                    bleCharacteristic = await service.getCharacteristic(BLE_CHARACTERISTIC_UUID);
+                    
+                    // 启用通知（接收设备反馈）
+                    await bleCharacteristic.startNotifications();
+                    bleCharacteristic.addEventListener('characteristicvaluechanged', (event) => {
+                        const decoder = new TextDecoder();
+                        const status = decoder.decode(event.target.value);
+                        connectionStatus.innerHTML = `<i class="fa fa-info-circle mr-1"></i><span>${status}</span>`;
+                    });
+
+                    // 连接成功
+                    updateConnectionStatus('蓝牙已连接', true);
+                    bleDevices.innerHTML = `<div class="p-2 text-center text-green-600">已连接: ${device.name}</div>`;
+                    sendCommand(`speed=${speedSlider.value}`); // 同步速度
+
+                    // 监听断开事件
+                    device.addEventListener('gattserverdisconnected', () => {
+                        updateConnectionStatus('蓝牙已断开', false);
+                        bleDevices.innerHTML = '';
+                    });
+
+                } catch (error) {
+                    console.error('蓝牙错误:', error);
+                    bleDevices.innerHTML = `<div class="p-2 text-center text-red-600">扫描失败，请重试</div>`;
+                    updateConnectionStatus('蓝牙连接失败', false);
+                }
+            }
+        });
+
+        // -------------------------- 控制逻辑 --------------------------
+        // 模式切换按钮
+        wifiModeBtn.addEventListener('click', () => switchMode('wifi'));
+        bleModeBtn.addEventListener('click', () => switchMode('ble'));
+
+        // 速度调节
+        speedSlider.addEventListener('input', () => {
+            const speed = speedSlider.value;
+            speedValue.textContent = speed;
+            sendCommand(`speed=${speed}`);
+        });
+
+        // 方向控制
+        forwardBtn.addEventListener('click', () => sendCommand('forward'));
+        backwardBtn.addEventListener('click', () => sendCommand('backward'));
+        leftBtn.addEventListener('click', () => sendCommand('left'));
+        rightBtn.addEventListener('click', () => sendCommand('right'));
+        stopBtn.addEventListener('click', () => sendCommand('stop'));
+        feedBtn.addEventListener('click', () => sendCommand('feed'));
+
+        // 触摸长按优化（移动设备）
+        const addTouchHoldEvents = (element, command) => {
+            let holdTimer;
+            element.addEventListener('touchstart', () => {
+                sendCommand(command);
+                holdTimer = setInterval(() => sendCommand(command), 100);
+            });
+            element.addEventListener('touchend', () => clearInterval(holdTimer));
+            element.addEventListener('touchcancel', () => clearInterval(holdTimer));
+        };
+        addTouchHoldEvents(forwardBtn, 'forward');
+        addTouchHoldEvents(backwardBtn, 'backward');
+        addTouchHoldEvents(leftBtn, 'left');
+        addTouchHoldEvents(rightBtn, 'right');
+    </script>
+</body>
+</html>
