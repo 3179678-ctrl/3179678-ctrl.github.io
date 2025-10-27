@@ -3,369 +3,732 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>打窝船控制器（蓝牙+WiFi）</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
-    
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        primary: '#165DFF',
-                        secondary: '#FF7D00',
-                        ble: '#7B61FF', // 蓝牙主题色
-                    },
-                }
-            }
+    <title>打窝船控制器（带距离和电量）</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #3b82f6;
+            --primary-dark: #2563eb;
+            --secondary: #f97316;
+            --success: #10b981;
+            --danger: #ef4444;
+            --dark: #1e293b;
+            --light: #f8fafc;
+            --gray: #64748b;
         }
-    </script>
-    
-    <style type="text/tailwindcss">
-        @layer utilities {
-            .btn-control {
-                @apply flex items-center justify-center rounded-xl shadow-lg transition-all duration-200 active:scale-95;
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        body {
+            background-color: #f1f5f9;
+            min-height: 100vh;
+            padding: 15px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 480px;
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            position: relative;
+        }
+
+        .container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            border-radius: 16px 16px 0 0;
+        }
+
+        h1 {
+            color: var(--dark);
+            text-align: center;
+            margin: 0 0 20px 0;
+            padding-top: 10px;
+            font-size: 22px;
+        }
+
+        .connection-panel {
+            background-color: #f8fafc;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .form-control {
+            flex: 1;
+            padding: 12px 15px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 15px;
+            min-height: 48px;
+        }
+
+        .btn {
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            min-height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background-color: var(--primary);
+            color: white;
+            width: 100%;
+        }
+
+        /* 状态面板扩大为3行2列，容纳距离和电量 */
+        .status-panel {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr); /* 固定2列布局 */
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .status-card {
+            background-color: #f8fafc;
+            border-radius: 12px;
+            padding: 12px;
+        }
+
+        .status-label {
+            font-size: 14px;
+            color: var(--gray);
+            margin-bottom: 5px;
+        }
+
+        .status-value {
+            font-size: 15px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-connected { color: var(--success); }
+        .status-disconnected { color: var(--danger); }
+        .status-pending { color: var(--secondary); }
+        .battery-high { color: var(--success); }    /* 高电量 */
+        .battery-medium { color: var(--secondary); } /* 中等电量 */
+        .battery-low { color: var(--danger); }       /* 低电量 */
+
+        .gear-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .gear-btn {
+            flex: 1;
+            padding: 12px 5px;
+            border-radius: 8px;
+            font-size: 15px;
+            border: 2px solid #e2e8f0;
+            background: white;
+            color: var(--gray);
+            cursor: pointer;
+            min-height: 48px;
+        }
+
+        .gear-btn.active {
+            border-color: var(--primary);
+            background: rgba(59,130,246,0.1);
+            color: var(--primary);
+        }
+
+        .joystick-container {
+            width: 280px;
+            height: 280px;
+            margin: 0 auto 20px;
+            position: relative;
+            background-color: #f8fafc;
+            border-radius: 50%;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.05);
+            background-image: radial-gradient(circle, rgba(59,130,246,0.05) 55%, transparent 55%);
+        }
+
+        .joystick-knob {
+            width: 90px;
+            height: 90px;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: var(--primary);
+            border-radius: 50%;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            cursor: grab;
+            touch-action: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .joystick-label {
+            position: absolute;
+            color: var(--gray);
+            font-size: 14px;
+        }
+
+        .label-front { top: 15px; left: 50%; transform: translateX(-50%); }
+        .label-back { bottom: 15px; left: 50%; transform: translateX(-50%); }
+        .label-left { left: 15px; top: 50%; transform: translateY(-50%); }
+        .label-right { right: 15px; top: 50%; transform: translateY(-50%); }
+
+        .bait-controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        .bait-btn {
+            flex: 1;
+            padding: 12px 5px;
+            border-radius: 8px;
+            font-size: 15px;
+            border: none;
+            cursor: pointer;
+            min-height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .bait-release {
+            background-color: var(--secondary);
+            color: white;
+        }
+
+        .bait-reset {
+            background-color: var(--gray);
+            color: white;
+        }
+
+        .history-panel {
+            background-color: #f8fafc;
+            border-radius: 12px;
+            padding: 12px;
+            margin-top: 15px;
+        }
+
+        #command-history {
+            max-height: 100px;
+            overflow-y: auto;
+            font-size: 14px;
+        }
+
+        .history-item {
+            padding: 5px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.6; }
+            100% { opacity: 1; }
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 15px;
+            font-size: 13px;
+            color: var(--gray);
+        }
+
+        @media (max-width: 320px) {
+            .joystick-container {
+                width: 240px;
+                height: 240px;
             }
-            .btn-direction {
-                @apply btn-control bg-primary text-white text-2xl md:text-3xl;
-            }
-            .btn-action {
-                @apply btn-control text-white text-xl;
+            .joystick-knob {
+                width: 80px;
+                height: 80px;
             }
         }
     </style>
 </head>
-<body class="bg-gray-100 min-h-screen p-4 font-sans">
-    <div class="max-w-md mx-auto bg-white rounded-2xl shadow-xl overflow-hidden">
-        <!-- 顶部状态栏 -->
-        <div class="bg-primary text-white p-4">
-            <h1 class="text-xl font-bold flex items-center">
-                <i class="fa fa-ship mr-2"></i>打窝船控制器
-            </h1>
-            <div id="connectionStatus" class="mt-2 text-sm bg-white/20 rounded-full px-3 py-1 inline-flex items-center">
-                <i class="fa fa-circle-o mr-1"></i>
-                <span>未连接</span>
+<body>
+    <div class="container">
+        <h1><i class="fas fa-ship"></i> 打窝船控制器</h1>
+
+        <div class="connection-panel">
+            <div class="connection-title">
+                <i class="fas fa-plug"></i> 服务器设置
             </div>
-        </div>
-        
-        <!-- 连接方式选择 -->
-        <div class="p-4 border-b border-gray-200">
-            <div class="flex items-center gap-2 mb-3">
-                <i class="fa fa-plug text-primary"></i>
-                <h2 class="font-bold">连接设置</h2>
+            <div class="form-row">
+                <input type="text" class="form-control" id="server-ip" placeholder="服务器IP" value="127.0.0.1">
+                <input type="number" class="form-control" id="server-port" placeholder="端口" value="8765">
             </div>
-            
-            <!-- 连接模式切换 -->
-            <div class="flex gap-2 mb-3">
-                <button id="wifiModeBtn" class="flex-1 py-2 bg-primary text-white rounded-lg">
-                    <i class="fa fa-wifi mr-1"></i>WiFi
-                </button>
-                <button id="bleModeBtn" class="flex-1 py-2 bg-gray-200 text-gray-700 rounded-lg">
-                    <i class="fa fa-bluetooth mr-1"></i>蓝牙
-                </button>
-            </div>
-            
-            <!-- WiFi连接区域（默认显示） -->
-            <div id="wifiSection" class="flex gap-2">
-                <input 
-                    type="text" 
-                    id="ipAddress" 
-                    placeholder="输入ESP32的IP地址" 
-                    class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
-                    value="192.168.4.1"
-                >
-                <button 
-                    id="wifiConnectBtn" 
-                    class="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors"
-                >
-                    连接
-                </button>
-            </div>
-            
-            <!-- 蓝牙连接区域（默认隐藏） -->
-            <div id="bleSection" class="hidden">
-                <button 
-                    id="bleConnectBtn" 
-                    class="w-full bg-ble text-white px-4 py-2 rounded-lg hover:bg-ble/90 transition-colors"
-                >
-                    <i class="fa fa-search mr-1"></i>扫描蓝牙设备
-                </button>
-                <div id="bleDevices" class="mt-2 max-h-32 overflow-y-auto text-sm"></div>
-            </div>
-        </div>
-        
-        <!-- 速度控制 -->
-        <div class="p-4 border-b border-gray-200">
-            <div class="flex justify-between items-center mb-2">
-                <div class="flex items-center gap-2">
-                    <i class="fa fa-tachometer text-primary"></i>
-                    <h2 class="font-bold">速度调节</h2>
-                </div>
-                <span id="speedValue" class="bg-gray-100 px-3 py-1 rounded-full text-sm">200</span>
-            </div>
-            <input 
-                type="range" 
-                id="speedSlider" 
-                min="50" 
-                max="255" 
-                value="200" 
-                class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-primary"
-            >
-        </div>
-        
-        <!-- 控制按钮区 -->
-        <div class="p-4">
-            <div class="flex justify-between items-center mb-3">
-                <i class="fa fa-arrows text-primary"></i>
-                <h2 class="font-bold">方向控制</h2>
-            </div>
-            
-            <!-- 方向按钮网格 -->
-            <div class="grid grid-cols-3 gap-2 mb-4" style="aspect-ratio: 3/3;">
-                <div></div>
-                <button id="forwardBtn" class="btn-direction bg-primary">
-                    <i class="fa fa-arrow-up"></i>
-                </button>
-                <div></div>
-                
-                <button id="leftBtn" class="btn-direction bg-primary">
-                    <i class="fa fa-arrow-left"></i>
-                </button>
-                <button id="stopBtn" class="btn-direction bg-gray-500">
-                    <i class="fa fa-stop"></i>
-                </button>
-                <button id="rightBtn" class="btn-direction bg-primary">
-                    <i class="fa fa-arrow-right"></i>
-                </button>
-                
-                <div></div>
-                <button id="backwardBtn" class="btn-direction bg-primary">
-                    <i class="fa fa-arrow-down"></i>
-                </button>
-                <div></div>
-            </div>
-            
-            <!-- 投饵按钮 -->
-            <button id="feedBtn" class="btn-action w-full py-4 bg-secondary hover:bg-secondary/90">
-                <i class="fa fa-cubes mr-2"></i>投饵
+            <button class="btn btn-primary" id="connect-btn">
+                <i class="fas fa-link"></i> 连接服务器
             </button>
+        </div>
+
+        <!-- 状态面板新增距离和电量显示 -->
+        <div class="status-panel">
+            <div class="status-card">
+                <div class="status-label">服务器连接</div>
+                <div class="status-value">
+                    <i class="fas fa-server status-disconnected" id="server-status-icon"></i>
+                    <span id="server-status">未连接</span>
+                </div>
+            </div>
+            <div class="status-card">
+                <div class="status-label">车辆连接</div>
+                <div class="status-value">
+                    <i class="fas fa-car status-pending" id="car-status-icon"></i>
+                    <span id="car-status">等待连接</span>
+                </div>
+            </div>
+            <div class="status-card">
+                <div class="status-label">当前档位</div>
+                <div class="status-value">
+                    <i class="fas fa-tachometer-alt"></i>
+                    <span id="current-gear">2（中档）</span>
+                </div>
+            </div>
+            <div class="status-card">
+                <div class="status-label">最后指令</div>
+                <div class="status-value">
+                    <i class="fas fa-history"></i>
+                    <span id="last-command">无</span>
+                </div>
+            </div>
+            <!-- 新增：距离显示 -->
+            <div class="status-card">
+                <div class="status-label">距离（米）</div>
+                <div class="status-value">
+                    <i class="fas fa-ruler"></i>
+                    <span id="distance">--</span>
+                </div>
+            </div>
+            <!-- 新增：电池电量显示 -->
+            <div class="status-card">
+                <div class="status-label">电池电量</div>
+                <div class="status-value">
+                    <i class="fas fa-battery-full" id="battery-icon"></i>
+                    <span id="battery">--</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="control-section">
+            <div class="section-title">
+                <i class="fas fa-cog"></i> 档位控制
+            </div>
+            <div class="gear-controls">
+                <button class="gear-btn" data-gear="1">1档（慢）</button>
+                <button class="gear-btn active" data-gear="2">2档（中）</button>
+                <button class="gear-btn" data-gear="3">3档（快）</button>
+            </div>
+        </div>
+
+        <div class="control-section">
+            <div class="section-title">
+                <i class="fas fa-compass"></i> 方向控制
+            </div>
+            <div class="joystick-container" id="joystick-container">
+                <div class="joystick-knob" id="joystick">控</div>
+                <div class="joystick-label label-front">前</div>
+                <div class="joystick-label label-back">后</div>
+                <div class="joystick-label label-left">左</div>
+                <div class="joystick-label label-right">右</div>
+            </div>
+        </div>
+
+        <div class="control-section">
+            <div class="section-title">
+                <i class="fas fa-fish"></i> 投饵控制
+            </div>
+            <div class="bait-controls">
+                <button class="bait-btn bait-release" data-cmd="D">
+                    <i class="fas fa-box-open"></i> 投饵
+                </button>
+                <button class="bait-btn bait-reset" data-cmd="RST">
+                    <i class="fas fa-redo"></i> 重置
+                </button>
+            </div>
+        </div>
+
+        <div class="history-panel">
+            <div class="section-title">
+                <i class="fas fa-list"></i> 指令历史
+            </div>
+            <div id="command-history"></div>
+        </div>
+
+        <div class="footer">
+            <p>支持距离和电量显示</p>
         </div>
     </div>
 
     <script>
-        // 全局变量
-        let connectionType = 'wifi'; // 默认为WiFi模式
-        let websocket = null;        // WiFi连接对象
-        let bleServer = null;        // 蓝牙连接对象
-        let bleCharacteristic = null;// 蓝牙特征值
-        let isConnected = false;     // 连接状态
+        document.addEventListener('DOMContentLoaded', function() {
+            // 全局变量
+            let ws = null;
+            let serverIP = '127.0.0.1';
+            let serverPort = 8765;
+            let isConnected = false;
+            let currentGear = 2;
+            let lastSentCmd = null;
+            const joystickDeadzone = 0.55; 
+            const directionThreshold = 0.6; 
+            let carConnected = false;
 
-        // DOM元素
-        const connectionStatus = document.getElementById('connectionStatus');
-        const wifiModeBtn = document.getElementById('wifiModeBtn');
-        const bleModeBtn = document.getElementById('bleModeBtn');
-        const wifiSection = document.getElementById('wifiSection');
-        const bleSection = document.getElementById('bleSection');
-        const ipAddress = document.getElementById('ipAddress');
-        const wifiConnectBtn = document.getElementById('wifiConnectBtn');
-        const bleConnectBtn = document.getElementById('bleConnectBtn');
-        const bleDevices = document.getElementById('bleDevices');
-        const speedSlider = document.getElementById('speedSlider');
-        const speedValue = document.getElementById('speedValue');
-        const forwardBtn = document.getElementById('forwardBtn');
-        const backwardBtn = document.getElementById('backwardBtn');
-        const leftBtn = document.getElementById('leftBtn');
-        const rightBtn = document.getElementById('rightBtn');
-        const stopBtn = document.getElementById('stopBtn');
-        const feedBtn = document.getElementById('feedBtn');
+            // DOM元素（新增距离和电量）
+            const connectBtn = document.getElementById('connect-btn');
+            const serverIpInput = document.getElementById('server-ip');
+            const serverPortInput = document.getElementById('server-port');
+            const serverStatusEl = document.getElementById('server-status');
+            const serverStatusIconEl = document.getElementById('server-status-icon');
+            const carStatusEl = document.getElementById('car-status');
+            const carStatusIconEl = document.getElementById('car-status-icon');
+            const currentGearEl = document.getElementById('current-gear');
+            const lastCommandEl = document.getElementById('last-command');
+            const commandHistoryEl = document.getElementById('command-history');
+            const gearBtns = document.querySelectorAll('.gear-btn');
+            const baitBtns = document.querySelectorAll('.bait-btn');
+            const joystick = document.getElementById('joystick');
+            const joystickContainer = document.getElementById('joystick-container');
+            // 新增元素
+            const distanceEl = document.getElementById('distance');
+            const batteryEl = document.getElementById('battery');
+            const batteryIconEl = document.getElementById('battery-icon');
 
-        // BLE配置（需与ESP32代码中的UUID一致）
-        const BLE_SERVICE_UUID = '4fafc201-1fb5-459e-8fcc-c5c9c331914b';
-        const BLE_CHARACTERISTIC_UUID = 'beb5483e-36e1-4688-b7f5-ea07361b26a8';
-        const BLE_DEVICE_NAME = 'ESP32打窝船'; // 设备名称
+            // 摇杆配置
+            const containerRect = joystickContainer.getBoundingClientRect();
+            const containerCenter = { x: containerRect.width / 2, y: containerRect.height / 2 };
+            const maxKnobDistance = containerCenter.x - (joystick.offsetWidth / 2);
+            let isDragging = false;
 
-        // 更新连接状态显示
-        function updateConnectionStatus(status, connected) {
-            isConnected = connected;
-            const icon = connected ? 'fa-check-circle' : 
-                         (connectionType === 'wifi' ? 'fa-wifi' : 'fa-bluetooth');
-            const colorClass = connected ? 'bg-green-500/20 text-green-100' : 'bg-white/20';
-            
-            connectionStatus.innerHTML = `
-                <i class="fa ${icon} mr-1"></i>
-                <span>${status}</span>
-            `;
-            connectionStatus.className = `mt-2 text-sm rounded-full px-3 py-1 inline-flex items-center ${colorClass}`;
-            
-            // 更新连接按钮文本
-            wifiConnectBtn.textContent = connectionType === 'wifi' && connected ? '断开' : '连接';
-        }
-
-        // 切换连接模式（WiFi/蓝牙）
-        function switchMode(mode) {
-            // 先断开当前连接
-            if (isConnected) {
-                if (connectionType === 'wifi' && websocket) websocket.close();
-                if (connectionType === 'ble' && bleServer) bleServer.disconnect();
-                updateConnectionStatus('已断开', false);
-            }
-            
-            // 更新UI
-            connectionType = mode;
-            if (mode === 'wifi') {
-                wifiModeBtn.className = 'flex-1 py-2 bg-primary text-white rounded-lg';
-                bleModeBtn.className = 'flex-1 py-2 bg-gray-200 text-gray-700 rounded-lg';
-                wifiSection.classList.remove('hidden');
-                bleSection.classList.add('hidden');
-            } else {
-                wifiModeBtn.className = 'flex-1 py-2 bg-gray-200 text-gray-700 rounded-lg';
-                bleModeBtn.className = 'flex-1 py-2 bg-ble text-white rounded-lg';
-                wifiSection.classList.add('hidden');
-                bleSection.classList.remove('hidden');
-            }
-        }
-
-        // 发送命令到设备（通用方法，自动判断连接类型）
-        function sendCommand(command) {
-            if (!isConnected) {
-                alert('请先连接设备');
-                return;
-            }
-            
-            try {
-                if (connectionType === 'wifi') {
-                    websocket.send(command);
-                } else {
-                    // 蓝牙发送（字符串转Uint8Array）
-                    const encoder = new TextEncoder();
-                    bleCharacteristic.writeValue(encoder.encode(command));
+            // 辅助函数：添加历史记录
+            function addToHistory(text) {
+                const timeStr = new Date().toTimeString().slice(0, 8);
+                const item = document.createElement('div');
+                item.className = 'history-item';
+                item.textContent = `[${timeStr}] ${text}`;
+                commandHistoryEl.prepend(item);
+                if (commandHistoryEl.children.length > 10) {
+                    commandHistoryEl.removeChild(commandHistoryEl.lastChild);
                 }
-                console.log('发送命令:', command);
-            } catch (error) {
-                console.error('发送失败:', error);
-                updateConnectionStatus('连接异常', false);
             }
-        }
 
-        // -------------------------- WiFi连接逻辑 --------------------------
-        wifiConnectBtn.addEventListener('click', () => {
-            if (isConnected) {
-                // 断开WiFi连接
-                websocket.close();
-                updateConnectionStatus('WiFi已断开', false);
-            } else {
-                // 建立WiFi连接
-                const ip = ipAddress.value.trim();
-                if (!ip) {
-                    alert('请输入IP地址');
+            // 更新状态显示
+            function updateServerStatus(connected) {
+                if (connected) {
+                    serverStatusEl.textContent = `已连接 (${serverIP}:${serverPort})`;
+                    serverStatusEl.className = 'status-connected';
+                    serverStatusIconEl.className = 'fas fa-server status-connected pulse';
+                    connectBtn.innerHTML = '<i class="fas fa-unlink"></i> 断开连接';
+                } else {
+                    serverStatusEl.textContent = '未连接';
+                    serverStatusEl.className = 'status-disconnected';
+                    serverStatusIconEl.className = 'fas fa-server status-disconnected';
+                    connectBtn.innerHTML = '<i class="fas fa-link"></i> 连接服务器';
+                }
+            }
+
+            function updateCarStatus(connected) {
+                if (connected) {
+                    carStatusEl.textContent = '已连接';
+                    carStatusEl.className = 'status-connected';
+                    carStatusIconEl.className = 'fas fa-car status-connected';
+                } else {
+                    carStatusEl.textContent = '等待连接';
+                    carStatusEl.className = 'status-pending';
+                    carStatusIconEl.className = 'fas fa-car status-pending';
+                }
+            }
+
+            // 新增：更新距离显示
+            function updateDistance(distance) {
+                distanceEl.textContent = distance.toFixed(1); // 保留1位小数
+                addToHistory(`距离更新: ${distance.toFixed(1)}米`);
+            }
+
+            // 新增：更新电池电量（带颜色和图标变化）
+            function updateBattery(percent) {
+                batteryEl.textContent = `${percent}%`;
+                
+                // 根据电量设置颜色和图标
+                if (percent >= 70) {
+                    batteryEl.className = 'battery-high';
+                    batteryIconEl.className = 'fas fa-battery-full battery-high';
+                } else if (percent >= 30) {
+                    batteryEl.className = 'battery-medium';
+                    batteryIconEl.className = 'fas fa-battery-three-quarters battery-medium';
+                } else {
+                    batteryEl.className = 'battery-low';
+                    batteryIconEl.className = 'fas fa-battery-low battery-low';
+                    addToHistory(`警告：电量低（${percent}%）`); // 低电量警告
+                }
+            }
+
+            function updateLastCommand(cmd) {
+                const cmdMap = {
+                    'S': '停止', 'F': '前进', 'B': '后退', 
+                    'L': '左转', 'R': '右转', 'D': '投饵', 'RST': '投饵重置',
+                    '1': '1档（慢）', '2': '2档（中）', '3': '3档（快）'
+                };
+                lastCommandEl.textContent = cmdMap[cmd] || cmd;
+            }
+
+            function updateGearDisplay(gear) {
+                const gearNames = {1: '1档（慢）', 2: '2档（中）', 3: '3档（快）'};
+                currentGearEl.textContent = gearNames[gear];
+                gearBtns.forEach(btn => btn.classList.toggle('active', btn.dataset.gear == gear));
+            }
+
+            // 摇杆复位
+            function resetJoystick() {
+                if (isDragging) return;
+                joystick.style.transform = 'translate(-50%, -50%)';
+                if (lastSentCmd !== 'S') sendCommand('S');
+            }
+
+            // 摇杆移动逻辑
+            function handleJoystickMove(clientX, clientY) {
+                if (!isDragging) return;
+
+                const rect = joystickContainer.getBoundingClientRect();
+                const centerX = rect.left + (rect.width / 2);
+                const centerY = rect.top + (rect.height / 2);
+
+                const deltaX = clientX - centerX;
+                const deltaY = clientY - centerY;
+                const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+
+                if (distance > maxKnobDistance) {
+                    const scale = maxKnobDistance / distance;
+                    deltaX *= scale;
+                    deltaY *= scale;
+                }
+
+                joystick.style.transform = `translate(calc(-50% + ${deltaX}px), calc(-50% + ${deltaY}px))`;
+
+                if (distance < joystickDeadzone * maxKnobDistance) {
+                    sendCommand('S');
                     return;
                 }
-                const wsUrl = `ws://${ip}:80/ws`;
-                updateConnectionStatus('WiFi连接中...', false);
-                
-                websocket = new WebSocket(wsUrl);
-                websocket.onopen = () => {
-                    updateConnectionStatus('WiFi已连接', true);
-                    sendCommand(`speed=${speedSlider.value}`); // 同步速度
+
+                const normalizedX = deltaX / maxKnobDistance;
+                const normalizedY = deltaY / maxKnobDistance;
+
+                let cmd = 'S';
+                if (Math.abs(normalizedY) > Math.abs(normalizedX)) {
+                    if (normalizedY < -directionThreshold) cmd = 'F';
+                    else if (normalizedY > directionThreshold) cmd = 'B';
+                } else {
+                    if (normalizedX < -directionThreshold) cmd = 'L';
+                    else if (normalizedX > directionThreshold) cmd = 'R';
+                }
+
+                sendCommand(cmd);
+            }
+
+            // WebSocket连接（新增距离和电量消息处理）
+            function connect() {
+                if (ws && ws.readyState !== WebSocket.CLOSED) ws.close();
+
+                serverIP = serverIpInput.value.trim();
+                serverPort = parseInt(serverPortInput.value) || 8765;
+                const wsUrl = `ws://${serverIP}:${serverPort}`;
+
+                ws = new WebSocket(wsUrl);
+
+                ws.onopen = function() {
+                    isConnected = true;
+                    updateServerStatus(true);
+                    addToHistory(`已连接服务器: ${wsUrl}`);
+                    sendCommand('AM_GXG');
                 };
-                websocket.onclose = () => updateConnectionStatus('WiFi已断开', false);
-                websocket.onerror = () => updateConnectionStatus('WiFi连接失败', false);
-                websocket.onmessage = (event) => {
-                    connectionStatus.innerHTML = `<i class="fa fa-info-circle mr-1"></i><span>${event.data}</span>`;
+
+                // 处理服务器消息（包括距离和电量）
+                ws.onmessage = function(event) {
+                    const message = event.data;
+                    addToHistory(`收到: ${message}`);
+
+                    // 车辆连接状态
+                    if (message === "CAR_CONNECTED:1") {
+                        carConnected = true;
+                        updateCarStatus(true);
+                    }
+                    // 车辆数据（距离和电量）
+                    else if (message.startsWith("CAR_DATA:")) {
+                        const data = message.replace("CAR_DATA:", "");
+                        // 解析距离（格式：DISTANCE:5.2）
+                        if (data.startsWith("DISTANCE:")) {
+                            const distance = parseFloat(data.split(":")[1]);
+                            if (!isNaN(distance)) updateDistance(distance);
+                        }
+                        // 解析电量（格式：BATTERY:85）
+                        else if (data.startsWith("BATTERY:")) {
+                            const battery = parseInt(data.split(":")[1]);
+                            if (!isNaN(battery) && battery >= 0 && battery <= 100) {
+                                updateBattery(battery);
+                            }
+                        }
+                        // 收到数据即视为车辆已连接
+                        carConnected = true;
+                        updateCarStatus(true);
+                    }
+                    // 其他车辆消息
+                    else if (message.startsWith("CAR_MSG:")) {
+                        carConnected = true;
+                        updateCarStatus(true);
+                    }
+                };
+
+                ws.onclose = function() {
+                    isConnected = false;
+                    carConnected = false;
+                    updateServerStatus(false);
+                    updateCarStatus(false);
+                    // 重置距离和电量显示
+                    distanceEl.textContent = "--";
+                    batteryEl.textContent = "--";
+                    batteryIconEl.className = "fas fa-battery-full";
+                    addToHistory('服务器连接已关闭');
+                };
+
+                ws.onerror = function() {
+                    addToHistory('连接错误：请检查服务器');
                 };
             }
-        });
 
-        // -------------------------- 蓝牙连接逻辑 --------------------------
-        bleConnectBtn.addEventListener('click', async () => {
-            if (isConnected) {
-                // 断开蓝牙连接
-                bleServer.disconnect();
-                updateConnectionStatus('蓝牙已断开', false);
-                bleDevices.innerHTML = '';
-            } else {
-                // 扫描蓝牙设备
+            function disconnect() {
+                if (ws) ws.close();
+                isConnected = false;
+                carConnected = false;
+                updateServerStatus(false);
+                updateCarStatus(false);
+                distanceEl.textContent = "--";
+                batteryEl.textContent = "--";
+                batteryIconEl.className = "fas fa-battery-full";
+            }
+
+            // 发送指令
+            function sendCommand(cmd) {
+                if (!isConnected || !ws || ws.readyState !== WebSocket.OPEN) {
+                    addToHistory('发送失败：未连接服务器');
+                    alert('请先连接服务器');
+                    return false;
+                }
+
+                if (['F','B','L','R','S'].indexOf(cmd) === -1 && cmd === lastSentCmd) {
+                    return true;
+                }
+
                 try {
-                    bleDevices.innerHTML = '<div class="p-2 text-center">扫描中...</div>';
-                    
-                    // 请求蓝牙设备（过滤名称和服务）
-                    const device = await navigator.bluetooth.requestDevice({
-                        filters: [
-                            { name: BLE_DEVICE_NAME }, // 按名称过滤
-                            { services: [BLE_SERVICE_UUID] } // 按服务UUID过滤
-                        ],
-                        optionalServices: [BLE_SERVICE_UUID]
-                    });
-
-                    // 连接GATT服务器
-                    bleServer = await device.gatt.connect();
-                    updateConnectionStatus('蓝牙连接中...', false);
-                    
-                    // 获取服务和特征值
-                    const service = await bleServer.getPrimaryService(BLE_SERVICE_UUID);
-                    bleCharacteristic = await service.getCharacteristic(BLE_CHARACTERISTIC_UUID);
-                    
-                    // 启用通知（接收设备反馈）
-                    await bleCharacteristic.startNotifications();
-                    bleCharacteristic.addEventListener('characteristicvaluechanged', (event) => {
-                        const decoder = new TextDecoder();
-                        const status = decoder.decode(event.target.value);
-                        connectionStatus.innerHTML = `<i class="fa fa-info-circle mr-1"></i><span>${status}</span>`;
-                    });
-
-                    // 连接成功
-                    updateConnectionStatus('蓝牙已连接', true);
-                    bleDevices.innerHTML = `<div class="p-2 text-center text-green-600">已连接: ${device.name}</div>`;
-                    sendCommand(`speed=${speedSlider.value}`); // 同步速度
-
-                    // 监听断开事件
-                    device.addEventListener('gattserverdisconnected', () => {
-                        updateConnectionStatus('蓝牙已断开', false);
-                        bleDevices.innerHTML = '';
-                    });
-
-                } catch (error) {
-                    console.error('蓝牙错误:', error);
-                    bleDevices.innerHTML = `<div class="p-2 text-center text-red-600">扫描失败，请重试</div>`;
-                    updateConnectionStatus('蓝牙连接失败', false);
+                    ws.send(cmd);
+                    lastSentCmd = cmd;
+                    updateLastCommand(cmd);
+                    addToHistory(`发送: ${cmd}`);
+                    return true;
+                } catch (e) {
+                    addToHistory(`发送失败: ${cmd}`);
+                    return false;
                 }
             }
-        });
 
-        // -------------------------- 控制逻辑 --------------------------
-        // 模式切换按钮
-        wifiModeBtn.addEventListener('click', () => switchMode('wifi'));
-        bleModeBtn.addEventListener('click', () => switchMode('ble'));
-
-        // 速度调节
-        speedSlider.addEventListener('input', () => {
-            const speed = speedSlider.value;
-            speedValue.textContent = speed;
-            sendCommand(`speed=${speed}`);
-        });
-
-        // 方向控制
-        forwardBtn.addEventListener('click', () => sendCommand('forward'));
-        backwardBtn.addEventListener('click', () => sendCommand('backward'));
-        leftBtn.addEventListener('click', () => sendCommand('left'));
-        rightBtn.addEventListener('click', () => sendCommand('right'));
-        stopBtn.addEventListener('click', () => sendCommand('stop'));
-        feedBtn.addEventListener('click', () => sendCommand('feed'));
-
-        // 触摸长按优化（移动设备）
-        const addTouchHoldEvents = (element, command) => {
-            let holdTimer;
-            element.addEventListener('touchstart', () => {
-                sendCommand(command);
-                holdTimer = setInterval(() => sendCommand(command), 100);
+            // 事件监听
+            joystick.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                isDragging = true;
+                joystick.style.cursor = 'grabbing';
             });
-            element.addEventListener('touchend', () => clearInterval(holdTimer));
-            element.addEventListener('touchcancel', () => clearInterval(holdTimer));
-        };
-        addTouchHoldEvents(forwardBtn, 'forward');
-        addTouchHoldEvents(backwardBtn, 'backward');
-        addTouchHoldEvents(leftBtn, 'left');
-        addTouchHoldEvents(rightBtn, 'right');
+
+            document.addEventListener('mousemove', (e) => {
+                if (isDragging) handleJoystickMove(e.clientX, e.clientY);
+            });
+
+            document.addEventListener('mouseup', () => {
+                if (isDragging) {
+                    isDragging = false;
+                    joystick.style.cursor = 'grab';
+                    resetJoystick();
+                }
+            });
+
+            joystick.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                isDragging = true;
+            }, { passive: false });
+
+            document.addEventListener('touchmove', (e) => {
+                if (isDragging) {
+                    e.preventDefault();
+                    const touch = e.touches[0];
+                    handleJoystickMove(touch.clientX, touch.clientY);
+                }
+            }, { passive: false });
+
+            document.addEventListener('touchend', () => {
+                if (isDragging) {
+                    isDragging = false;
+                    resetJoystick();
+                }
+            });
+
+            document.addEventListener('touchcancel', () => {
+                if (isDragging) {
+                    isDragging = false;
+                    resetJoystick();
+                }
+            });
+
+            connectBtn.addEventListener('click', () => isConnected ? disconnect() : connect());
+
+            gearBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const gear = parseInt(btn.dataset.gear);
+                    if (gear !== currentGear) {
+                        sendCommand(gear.toString()) && (currentGear = gear) && updateGearDisplay(gear);
+                    }
+                });
+            });
+
+            baitBtns.forEach(btn => {
+                btn.addEventListener('click', () => sendCommand(btn.dataset.cmd));
+            });
+
+            // 初始化
+            addToHistory('控制器已加载，等待连接');
+        });
     </script>
 </body>
 </html>
