@@ -3,669 +3,732 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>安全离线钱包生成器</title>
-    <script src="./ethers.umd.min.js"></script>
-    <script src="https://cdn.ethers.io/lib/ethers-5.2.umd.min.js"></script>
+    <title>打窝船控制器（带距离和电量）</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
-            --primary-color: #4c6ef5;
-            --secondary-color: #3b5bdb;
-            --success-color: #40c057;
-            --warning-color: #fab005;
-            --danger-color: #fa5252;
-            --dark-bg: #ffffff;
-            --card-bg: #1b1b22;
-            --text-light: #f8fafc;
-            --text-muted: #adb5bd;
-            --border-radius: 8px;
-            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --primary: #3b82f6;
+            --primary-dark: #2563eb;
+            --secondary: #f97316;
+            --success: #10b981;
+            --danger: #ef4444;
+            --dark: #1e293b;
+            --light: #f8fafc;
+            --gray: #64748b;
         }
-        
+
         * {
-            box-sizing: border-box;
             margin: 0;
             padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', sans-serif;
         }
-        
+
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--dark-bg);
-            color: var(--text-light);
-            line-height: 1.6;
-            padding: 15px;
+            background-color: #f1f5f9;
             min-height: 100vh;
-        }
-        
-        header {
-            text-align: center;
-            margin-bottom: 20px;
-            padding: 15px 0;
-            border-bottom: 1px solid #343a40;
-        }
-        
-        h1 {
-            color: var(--primary-color);
-            margin-bottom: 10px;
-            font-size: 1.8rem;
-        }
-        
-        .subtitle {
-            color: var(--text-muted);
-            font-size: 1rem;
-        }
-        
-        .container {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 20px;
-            margin-bottom: 25px;
-        }
-        
-        .card {
-            background: var(--card-bg);
-            border-radius: var(--border-radius);
-            padding: 20px;
-            box-shadow: var(--shadow);
-        }
-        
-        .card-title {
-            font-size: 1.3rem;
-            margin-bottom: 15px;
-            color: var(--primary-color);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .warning {
-            background: linear-gradient(135deg, #ffb100 0%, #ff8c00 100%);
-            color: #2b2d42;
             padding: 15px;
-            border-radius: var(--border-radius);
-            margin-bottom: 20px;
-            box-shadow: var(--shadow);
-            border-left: 5px solid #ff6b00;
-            font-size: 0.9rem;
-        }
-        
-        .warning h2 {
             display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 10px;
-            font-size: 1.1rem;
+            justify-content: center;
+            align-items: flex-start;
         }
-        
-        .form-group {
-            margin-bottom: 18px;
-        }
-        
-        label {
-            display: block;
-            margin-bottom: 6px;
-            font-weight: 500;
-            font-size: 0.95rem;
-        }
-        
-        input, select {
+
+        .container {
             width: 100%;
+            max-width: 480px;
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            position: relative;
+        }
+
+        .container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            border-radius: 16px 16px 0 0;
+        }
+
+        h1 {
+            color: var(--dark);
+            text-align: center;
+            margin: 0 0 20px 0;
+            padding-top: 10px;
+            font-size: 22px;
+        }
+
+        .connection-panel {
+            background-color: #f8fafc;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .form-control {
+            flex: 1;
             padding: 12px 15px;
-            background: #2c2e33;
-            border: 1px solid #444;
-            border-radius: 6px;
-            color: var(--text-light);
-            font-size: 1rem;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 15px;
             min-height: 48px;
         }
-        
-        input:focus, select:focus {
-            outline: none;
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 3px rgba(76, 110, 245, 0.3);
-        }
-        
+
         .btn {
-            display: inline-flex;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            min-height: 48px;
+            display: flex;
             align-items: center;
             justify-content: center;
             gap: 8px;
-            padding: 14px 20px;
-            border: none;
-            border-radius: 6px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            background: var(--primary-color);
+        }
+
+        .btn-primary {
+            background-color: var(--primary);
             color: white;
             width: 100%;
+        }
+
+        /* 状态面板扩大为3行2列，容纳距离和电量 */
+        .status-panel {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr); /* 固定2列布局 */
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .status-card {
+            background-color: #f8fafc;
+            border-radius: 12px;
+            padding: 12px;
+        }
+
+        .status-label {
+            font-size: 14px;
+            color: var(--gray);
+            margin-bottom: 5px;
+        }
+
+        .status-value {
+            font-size: 15px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-connected { color: var(--success); }
+        .status-disconnected { color: var(--danger); }
+        .status-pending { color: var(--secondary); }
+        .battery-high { color: var(--success); }    /* 高电量 */
+        .battery-medium { color: var(--secondary); } /* 中等电量 */
+        .battery-low { color: var(--danger); }       /* 低电量 */
+
+        .gear-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .gear-btn {
+            flex: 1;
+            padding: 12px 5px;
+            border-radius: 8px;
+            font-size: 15px;
+            border: 2px solid #e2e8f0;
+            background: white;
+            color: var(--gray);
+            cursor: pointer;
             min-height: 48px;
         }
-        
-        .btn-success {
-            background: var(--success-color);
+
+        .gear-btn.active {
+            border-color: var(--primary);
+            background: rgba(59,130,246,0.1);
+            color: var(--primary);
         }
-        
-        .btn-danger {
-            background: var(--danger-color);
-        }
-        
-        .btn-group {
-            display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
-            margin-top: 15px;
-        }
-        
-        .btn-group .btn {
-            flex: 1;
-            min-width: 120px;
-        }
-        
-        .progress-container {
-            margin-top: 15px;
-            background: #f1f2f5;
-            border-radius: 6px;
-            overflow: hidden;
-            height: 10px;
-        }
-        
-        .progress-bar {
-            height: 100%;
-            background: var(--primary-color);
-            width: 0%;
-            transition: width 0.3s ease;
-        }
-        
-        .table-container {
-            overflow-x: auto;
-            margin: 15px 0;
-            -webkit-overflow-scrolling: touch;
-        }
-        
-        table {
-            width: 100%;
-            min-width: 600px;
-            border-collapse: collapse;
-            background: var(--card-bg);
-            border-radius: var(--border-radius);
-            overflow: hidden;
-        }
-        
-        th, td {
-            padding: 12px 10px;
-            text-align: left;
-            border-bottom: 1px solid #eaeef2;
-            font-size: 0.9rem;
-        }
-        
-        th {
-            background: #eceef3;
-            color: var(--primary-color);
-            font-weight: 600;
-        }
-        
-        .sensitive {
+
+        .joystick-container {
+            width: 280px;
+            height: 280px;
+            margin: 0 auto 20px;
             position: relative;
-            padding-right: 35px;
+            background-color: #f8fafc;
+            border-radius: 50%;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.05);
+            background-image: radial-gradient(circle, rgba(59,130,246,0.05) 55%, transparent 55%);
         }
-        
-        .toggle-visibility {
+
+        .joystick-knob {
+            width: 90px;
+            height: 90px;
             position: absolute;
-            right: 10px;
             top: 50%;
-            transform: translateY(-50%);
-            background: none;
-            border: none;
-            color: var(--text-muted);
-            cursor: pointer;
-            font-size: 1.1rem;
-            width: 30px;
-            height: 30px;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: var(--primary);
+            border-radius: 50%;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            cursor: grab;
+            touch-action: none;
             display: flex;
             align-items: center;
             justify-content: center;
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
         }
-        
-        .hidden-content {
-            filter: blur(5px);
-            user-select: none;
-            transition: filter 0.3s ease;
+
+        .joystick-label {
+            position: absolute;
+            color: var(--gray);
+            font-size: 14px;
         }
-        
-        .hidden-content.revealed {
-            filter: none;
-            user-select: auto;
-        }
-        
-        .result-header {
+
+        .label-front { top: 15px; left: 50%; transform: translateX(-50%); }
+        .label-back { bottom: 15px; left: 50%; transform: translateX(-50%); }
+        .label-left { left: 15px; top: 50%; transform: translateY(-50%); }
+        .label-right { right: 15px; top: 50%; transform: translateY(-50%); }
+
+        .bait-controls {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-            flex-wrap: wrap;
             gap: 10px;
         }
-        
-        .counter {
-            background: var(--primary-color);
-            color: white;
-            padding: 5px 12px;
-            border-radius: 20px;
-            font-size: 0.85rem;
-        }
-        
-        footer {
-            text-align: center;
-            margin-top: 30px;
-            padding-top: 15px;
-            border-top: 1px solid #eaedf0;
-            color: var(--text-muted);
-            font-size: 0.85rem;
-        }
-        
-        .network-indicator {
-            position: fixed;
-            top: 15px;
-            right: 15px;
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 0.85rem;
-            font-weight: 600;
-            z-index: 1000;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-        }
-        
-        .network-offline {
-            background: var(--success-color);
-            color: #e6e7ec;
-        }
-        
-        .network-online {
-            background: var(--danger-color);
-            color: white;
-        }
-        
-        .instructions {
-            margin-top: 15px;
-            padding: 12px;
-            background: rgba(76, 110, 245, 0.1);
-            border-radius: var(--border-radius);
-            border-left: 3px solid var(--primary-color);
-            font-size: 0.9rem;
-        }
-        
-        .instructions ul {
-            padding-left: 20px;
-            margin-top: 8px;
-        }
-        
-        .copy-btn {
-            background: none;
+
+        .bait-btn {
+            flex: 1;
+            padding: 12px 5px;
+            border-radius: 8px;
+            font-size: 15px;
             border: none;
-            color: var(--text-muted);
             cursor: pointer;
-            font-size: 0.85rem;
-            margin: 0 3px;
-            padding: 5px 8px;
-            transition: color 0.2s;
-            border-radius: 4px;
-        }
-        
-        .copy-btn:hover {
-            color: var(--primary-color);
-            background: rgba(76, 110, 245, 0.1);
+            min-height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
         }
 
-        @media (min-width: 480px) {
-            .container {
-                gap: 25px;
-            }
-            
-            h1 {
-                font-size: 2.2rem;
-            }
+        .bait-release {
+            background-color: var(--secondary);
+            color: white;
         }
 
-        @media (min-width: 768px) {
-            .container {
-                grid-template-columns: 1fr 1fr;
+        .bait-reset {
+            background-color: var(--gray);
+            color: white;
+        }
+
+        .history-panel {
+            background-color: #f8fafc;
+            border-radius: 12px;
+            padding: 12px;
+            margin-top: 15px;
+        }
+
+        #command-history {
+            max-height: 100px;
+            overflow-y: auto;
+            font-size: 14px;
+        }
+
+        .history-item {
+            padding: 5px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.6; }
+            100% { opacity: 1; }
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 15px;
+            font-size: 13px;
+            color: var(--gray);
+        }
+
+        @media (max-width: 320px) {
+            .joystick-container {
+                width: 240px;
+                height: 240px;
             }
-            
-            body {
-                max-width: 1200px;
-                margin: 0 auto;
-                padding: 20px;
+            .joystick-knob {
+                width: 80px;
+                height: 80px;
             }
         }
     </style>
 </head>
 <body>
-    <!-- 网络状态指示器 -->
-    <div id="networkIndicator" class="network-indicator network-offline">
-        <span class="icon">📶</span> 离线模式
-    </div>
-    
-    <header>
-        <h1>🔒 安全离线钱包生成器</h1>
-        <p class="subtitle">在完全离线的环境中生成安全的加密货币钱包</p>
-    </header>
-    
-    <div class="warning">
-        <h2>⚠️ 重要安全提示</h2>
-        <p>1. 请确保在生成钱包前断开所有网络连接<br>
-           2. 使用无痕/隐私浏览模式打开本页<br>
-           3. 生成钱包后立即安全备份并清除浏览器历史记录<br>
-           4. 生成的钱包请自行承担使用风险</p>
-    </div>
-    
     <div class="container">
-        <div class="card">
-            <h2 class="card-title">⚙️ 钱包生成设置</h2>
-            
-            <div class="form-group">
-                <label for="walletCount">生成数量</label>
-                <input type="number" id="walletCount" min="1" max="100" value="5">
+        <h1><i class="fas fa-ship"></i> 打窝船控制器</h1>
+
+        <div class="connection-panel">
+            <div class="connection-title">
+                <i class="fas fa-plug"></i> 服务器设置
             </div>
-            
-            <div class="form-group">
-                <label for="walletType">钱包类型</label>
-                <select id="walletType">
-                    <option value="random">随机钱包 (推荐)</option>
-                    <option value="mnemonic">从助记词生成</option>
-                </select>
+            <div class="form-row">
+                <input type="text" class="form-control" id="server-ip" placeholder="服务器IP" value="127.0.0.1">
+                <input type="number" class="form-control" id="server-port" placeholder="端口" value="8765">
             </div>
-            
-            <div class="form-group" id="mnemonicGroup" style="display: none;">
-                <label for="customMnemonic">输入助记词 (BIP39)</label>
-                <input type="text" id="customMnemonic" placeholder="输入12或24个单词的助记词">
-            </div>
-            
-            <div class="form-group">
-                <label for="exportFormat">导出格式</label>
-                <select id="exportFormat">
-                    <option value="txt">TXT (易读格式)</option>
-                    <option value="csv">CSV (表格格式)</option>
-                </select>
-            </div>
-            
-            <div class="form-group">
-                <label>
-                    <input type="checkbox" id="hideSensitive" checked>
-                    默认隐藏敏感信息
-                </label>
-            </div>
-            
-            <button class="btn btn-success" onclick="generateWallets()">
-                <span class="icon">🔄</span> 生成钱包
+            <button class="btn btn-primary" id="connect-btn">
+                <i class="fas fa-link"></i> 连接服务器
             </button>
-            
-            <div class="progress-container" id="progressContainer" style="display: none;">
-                <div class="progress-bar" id="progressBar"></div>
-            </div>
         </div>
-        
-        <div class="card">
-            <h2 class="card-title">📋 钱包信息</h2>
-            <div id="walletInfo">
-                <p>尚未生成任何钱包。设置参数后点击"生成钱包"按钮开始。</p>
-                <div class="instructions">
-                    <strong>使用说明：</strong>
-                    <ul>
-                        <li>所有敏感信息默认被隐藏，点击👁️图标显示</li>
-                        <li>生成完成后点击"导出钱包"按钮保存数据</li>
-                        <li>建议在完成操作后清除浏览器历史记录</li>
-                    </ul>
+
+        <!-- 状态面板新增距离和电量显示 -->
+        <div class="status-panel">
+            <div class="status-card">
+                <div class="status-label">服务器连接</div>
+                <div class="status-value">
+                    <i class="fas fa-server status-disconnected" id="server-status-icon"></i>
+                    <span id="server-status">未连接</span>
+                </div>
+            </div>
+            <div class="status-card">
+                <div class="status-label">车辆连接</div>
+                <div class="status-value">
+                    <i class="fas fa-car status-pending" id="car-status-icon"></i>
+                    <span id="car-status">等待连接</span>
+                </div>
+            </div>
+            <div class="status-card">
+                <div class="status-label">当前档位</div>
+                <div class="status-value">
+                    <i class="fas fa-tachometer-alt"></i>
+                    <span id="current-gear">2（中档）</span>
+                </div>
+            </div>
+            <div class="status-card">
+                <div class="status-label">最后指令</div>
+                <div class="status-value">
+                    <i class="fas fa-history"></i>
+                    <span id="last-command">无</span>
+                </div>
+            </div>
+            <!-- 新增：距离显示 -->
+            <div class="status-card">
+                <div class="status-label">距离（米）</div>
+                <div class="status-value">
+                    <i class="fas fa-ruler"></i>
+                    <span id="distance">--</span>
+                </div>
+            </div>
+            <!-- 新增：电池电量显示 -->
+            <div class="status-card">
+                <div class="status-label">电池电量</div>
+                <div class="status-value">
+                    <i class="fas fa-battery-full" id="battery-icon"></i>
+                    <span id="battery">--</span>
                 </div>
             </div>
         </div>
+
+        <div class="control-section">
+            <div class="section-title">
+                <i class="fas fa-cog"></i> 档位控制
+            </div>
+            <div class="gear-controls">
+                <button class="gear-btn" data-gear="1">1档（慢）</button>
+                <button class="gear-btn active" data-gear="2">2档（中）</button>
+                <button class="gear-btn" data-gear="3">3档（快）</button>
+            </div>
+        </div>
+
+        <div class="control-section">
+            <div class="section-title">
+                <i class="fas fa-compass"></i> 方向控制
+            </div>
+            <div class="joystick-container" id="joystick-container">
+                <div class="joystick-knob" id="joystick">控</div>
+                <div class="joystick-label label-front">前</div>
+                <div class="joystick-label label-back">后</div>
+                <div class="joystick-label label-left">左</div>
+                <div class="joystick-label label-right">右</div>
+            </div>
+        </div>
+
+        <div class="control-section">
+            <div class="section-title">
+                <i class="fas fa-fish"></i> 投饵控制
+            </div>
+            <div class="bait-controls">
+                <button class="bait-btn bait-release" data-cmd="D">
+                    <i class="fas fa-box-open"></i> 投饵
+                </button>
+                <button class="bait-btn bait-reset" data-cmd="RST">
+                    <i class="fas fa-redo"></i> 重置
+                </button>
+            </div>
+        </div>
+
+        <div class="history-panel">
+            <div class="section-title">
+                <i class="fas fa-list"></i> 指令历史
+            </div>
+            <div id="command-history"></div>
+        </div>
+
+        <div class="footer">
+            <p>支持距离和电量显示</p>
+        </div>
     </div>
-    
-    <footer>
-        <p>安全警告：本工具在您的浏览器中完全运行，数据不会发送到任何服务器。但为确保最大安全性，建议在生成钱包后关闭本页面并清除浏览器历史记录。</p>
-        <p>© 2025 离线钱包生成器 </p>
-    </footer>
 
     <script>
-        // 检测网络状态
-        window.addEventListener('load', function() {
-            if (navigator.onLine) {
-                document.getElementById('networkIndicator').textContent = '⚠️ 警告：检测到网络连接';
-                document.getElementById('networkIndicator').className = 'network-indicator network-online';
-            }
-        });
-        
-        // 切换钱包类型
-        document.getElementById('walletType').addEventListener('change', function() {
-            const mnemonicGroup = document.getElementById('mnemonicGroup');
-            mnemonicGroup.style.display = this.value === 'mnemonic' ? 'block' : 'none';
-        });
-        
-        // 生成钱包函数
-        function generateWallets() {
-            const count = parseInt(document.getElementById('walletCount').value) || 5;
-            const walletType = document.getElementById('walletType').value;
-            const customMnemonic = document.getElementById('customMnemonic').value;
-            const hideSensitive = document.getElementById('hideSensitive').checked;
-            
-            // 验证输入
-            if (count < 1 || count > 100) {
-                alert('钱包数量必须在1到100之间');
-                return;
-            }
-            
-            // 显示进度条
-            const progressContainer = document.getElementById('progressContainer');
-            const progressBar = document.getElementById('progressBar');
-            progressContainer.style.display = 'block';
-            progressBar.style.width = '0%';
-            
-            // 模拟生成过程的延迟
-            const wallets = [];
-            
-            // 分块生成，避免界面卡顿
-            let generated = 0;
-            
-            function generateBatch() {
-                for (let i = 0; i < 5 && generated < count; i++) {
-                    let wallet;
-                    
-                    if (walletType === 'mnemonic' && customMnemonic) {
-                        try {
-                            wallet = ethers.Wallet.fromMnemonic(customMnemonic, `m/44'/60'/0'/0/${generated}`);
-                        } catch (e) {
-                            alert('无效的助记词: ' + e.message);
-                            progressContainer.style.display = 'none';
-                            return;
-                        }
-                    } else {
-                        wallet = ethers.Wallet.createRandom();
-                    }
-                    
-                    wallets.push({
-                        index: generated + 1,
-                        address: wallet.address,
-                        privateKey: wallet.privateKey,
-                        mnemonic: wallet.mnemonic?.phrase || 'N/A'
-                    });
-                    
-                    generated++;
-                    progressBar.style.width = `${(generated / count) * 100}%`;
+        document.addEventListener('DOMContentLoaded', function() {
+            // 全局变量
+            let ws = null;
+            let serverIP = '127.0.0.1';
+            let serverPort = 8765;
+            let isConnected = false;
+            let currentGear = 2;
+            let lastSentCmd = null;
+            const joystickDeadzone = 0.55; 
+            const directionThreshold = 0.6; 
+            let carConnected = false;
+
+            // DOM元素（新增距离和电量）
+            const connectBtn = document.getElementById('connect-btn');
+            const serverIpInput = document.getElementById('server-ip');
+            const serverPortInput = document.getElementById('server-port');
+            const serverStatusEl = document.getElementById('server-status');
+            const serverStatusIconEl = document.getElementById('server-status-icon');
+            const carStatusEl = document.getElementById('car-status');
+            const carStatusIconEl = document.getElementById('car-status-icon');
+            const currentGearEl = document.getElementById('current-gear');
+            const lastCommandEl = document.getElementById('last-command');
+            const commandHistoryEl = document.getElementById('command-history');
+            const gearBtns = document.querySelectorAll('.gear-btn');
+            const baitBtns = document.querySelectorAll('.bait-btn');
+            const joystick = document.getElementById('joystick');
+            const joystickContainer = document.getElementById('joystick-container');
+            // 新增元素
+            const distanceEl = document.getElementById('distance');
+            const batteryEl = document.getElementById('battery');
+            const batteryIconEl = document.getElementById('battery-icon');
+
+            // 摇杆配置
+            const containerRect = joystickContainer.getBoundingClientRect();
+            const containerCenter = { x: containerRect.width / 2, y: containerRect.height / 2 };
+            const maxKnobDistance = containerCenter.x - (joystick.offsetWidth / 2);
+            let isDragging = false;
+
+            // 辅助函数：添加历史记录
+            function addToHistory(text) {
+                const timeStr = new Date().toTimeString().slice(0, 8);
+                const item = document.createElement('div');
+                item.className = 'history-item';
+                item.textContent = `[${timeStr}] ${text}`;
+                commandHistoryEl.prepend(item);
+                if (commandHistoryEl.children.length > 10) {
+                    commandHistoryEl.removeChild(commandHistoryEl.lastChild);
                 }
-                
-                if (generated < count) {
-                    setTimeout(generateBatch, 50);
+            }
+
+            // 更新状态显示
+            function updateServerStatus(connected) {
+                if (connected) {
+                    serverStatusEl.textContent = `已连接 (${serverIP}:${serverPort})`;
+                    serverStatusEl.className = 'status-connected';
+                    serverStatusIconEl.className = 'fas fa-server status-connected pulse';
+                    connectBtn.innerHTML = '<i class="fas fa-unlink"></i> 断开连接';
                 } else {
-                    displayWallets(wallets, hideSensitive);
-                    progressContainer.style.display = 'none';
+                    serverStatusEl.textContent = '未连接';
+                    serverStatusEl.className = 'status-disconnected';
+                    serverStatusIconEl.className = 'fas fa-server status-disconnected';
+                    connectBtn.innerHTML = '<i class="fas fa-link"></i> 连接服务器';
                 }
             }
-            
-            generateBatch();
-        }
-        
-        // 显示钱包函数
-        function displayWallets(wallets, hideSensitive) {
-            let tableHTML = `
-                <div class="result-header">
-                    <h3>生成结果 <span class="counter">${wallets.length}个钱包</span></h3>
-                    <div class="btn-group">
-                        <button class="btn" onclick="exportWallets()">
-                            <span class="icon">💾</span> 导出钱包
-                        </button>
-                        <button class="btn btn-danger" onclick="clearWallets()">
-                            <span class="icon">🗑️</span> 清除数据
-                        </button>
-                    </div>
-                </div>
-                <div class="table-container">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>序号</th>
-                                <th>钱包地址</th>
-                                <th>私钥</th>
-                                <th>助记词</th>
-                                <th>操作</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-            `;
-            
-            wallets.forEach(wallet => {
-                tableHTML += `
-                    <tr>
-                        <td>${wallet.index}</td>
-                        <td>${wallet.address}</td>
-                        <td class="sensitive">
-                            <span class="${hideSensitive ? 'hidden-content' : ''}">${wallet.privateKey}</span>
-                            <button class="toggle-visibility" onclick="toggleVisibility(this)">👁️</button>
-                        </td>
-                        <td class="sensitive">
-                            <span class="${hideSensitive ? 'hidden-content' : ''}">${wallet.mnemonic}</span>
-                            <button class="toggle-visibility" onclick="toggleVisibility(this)">👁️</button>
-                        </td>
-                        <td>
-                            <button class="copy-btn" onclick="copyToClipboard('${wallet.address}')" title="复制地址">📋地址</button>
-                            <button class="copy-btn" onclick="copyToClipboard('${wallet.privateKey}')" title="复制私钥">🔑私钥</button>
-                        </td>
-                    </tr>
-                `;
+
+            function updateCarStatus(connected) {
+                if (connected) {
+                    carStatusEl.textContent = '已连接';
+                    carStatusEl.className = 'status-connected';
+                    carStatusIconEl.className = 'fas fa-car status-connected';
+                } else {
+                    carStatusEl.textContent = '等待连接';
+                    carStatusEl.className = 'status-pending';
+                    carStatusIconEl.className = 'fas fa-car status-pending';
+                }
+            }
+
+            // 新增：更新距离显示
+            function updateDistance(distance) {
+                distanceEl.textContent = distance.toFixed(1); // 保留1位小数
+                addToHistory(`距离更新: ${distance.toFixed(1)}米`);
+            }
+
+            // 新增：更新电池电量（带颜色和图标变化）
+            function updateBattery(percent) {
+                batteryEl.textContent = `${percent}%`;
+                
+                // 根据电量设置颜色和图标
+                if (percent >= 70) {
+                    batteryEl.className = 'battery-high';
+                    batteryIconEl.className = 'fas fa-battery-full battery-high';
+                } else if (percent >= 30) {
+                    batteryEl.className = 'battery-medium';
+                    batteryIconEl.className = 'fas fa-battery-three-quarters battery-medium';
+                } else {
+                    batteryEl.className = 'battery-low';
+                    batteryIconEl.className = 'fas fa-battery-low battery-low';
+                    addToHistory(`警告：电量低（${percent}%）`); // 低电量警告
+                }
+            }
+
+            function updateLastCommand(cmd) {
+                const cmdMap = {
+                    'S': '停止', 'F': '前进', 'B': '后退', 
+                    'L': '左转', 'R': '右转', 'D': '投饵', 'RST': '投饵重置',
+                    '1': '1档（慢）', '2': '2档（中）', '3': '3档（快）'
+                };
+                lastCommandEl.textContent = cmdMap[cmd] || cmd;
+            }
+
+            function updateGearDisplay(gear) {
+                const gearNames = {1: '1档（慢）', 2: '2档（中）', 3: '3档（快）'};
+                currentGearEl.textContent = gearNames[gear];
+                gearBtns.forEach(btn => btn.classList.toggle('active', btn.dataset.gear == gear));
+            }
+
+            // 摇杆复位
+            function resetJoystick() {
+                if (isDragging) return;
+                joystick.style.transform = 'translate(-50%, -50%)';
+                if (lastSentCmd !== 'S') sendCommand('S');
+            }
+
+            // 摇杆移动逻辑
+            function handleJoystickMove(clientX, clientY) {
+                if (!isDragging) return;
+
+                const rect = joystickContainer.getBoundingClientRect();
+                const centerX = rect.left + (rect.width / 2);
+                const centerY = rect.top + (rect.height / 2);
+
+                const deltaX = clientX - centerX;
+                const deltaY = clientY - centerY;
+                const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+
+                if (distance > maxKnobDistance) {
+                    const scale = maxKnobDistance / distance;
+                    deltaX *= scale;
+                    deltaY *= scale;
+                }
+
+                joystick.style.transform = `translate(calc(-50% + ${deltaX}px), calc(-50% + ${deltaY}px))`;
+
+                if (distance < joystickDeadzone * maxKnobDistance) {
+                    sendCommand('S');
+                    return;
+                }
+
+                const normalizedX = deltaX / maxKnobDistance;
+                const normalizedY = deltaY / maxKnobDistance;
+
+                let cmd = 'S';
+                if (Math.abs(normalizedY) > Math.abs(normalizedX)) {
+                    if (normalizedY < -directionThreshold) cmd = 'F';
+                    else if (normalizedY > directionThreshold) cmd = 'B';
+                } else {
+                    if (normalizedX < -directionThreshold) cmd = 'L';
+                    else if (normalizedX > directionThreshold) cmd = 'R';
+                }
+
+                sendCommand(cmd);
+            }
+
+            // WebSocket连接（新增距离和电量消息处理）
+            function connect() {
+                if (ws && ws.readyState !== WebSocket.CLOSED) ws.close();
+
+                serverIP = serverIpInput.value.trim();
+                serverPort = parseInt(serverPortInput.value) || 8765;
+                const wsUrl = `ws://${serverIP}:${serverPort}`;
+
+                ws = new WebSocket(wsUrl);
+
+                ws.onopen = function() {
+                    isConnected = true;
+                    updateServerStatus(true);
+                    addToHistory(`已连接服务器: ${wsUrl}`);
+                    sendCommand('AM_GXG');
+                };
+
+                // 处理服务器消息（包括距离和电量）
+                ws.onmessage = function(event) {
+                    const message = event.data;
+                    addToHistory(`收到: ${message}`);
+
+                    // 车辆连接状态
+                    if (message === "CAR_CONNECTED:1") {
+                        carConnected = true;
+                        updateCarStatus(true);
+                    }
+                    // 车辆数据（距离和电量）
+                    else if (message.startsWith("CAR_DATA:")) {
+                        const data = message.replace("CAR_DATA:", "");
+                        // 解析距离（格式：DISTANCE:5.2）
+                        if (data.startsWith("DISTANCE:")) {
+                            const distance = parseFloat(data.split(":")[1]);
+                            if (!isNaN(distance)) updateDistance(distance);
+                        }
+                        // 解析电量（格式：BATTERY:85）
+                        else if (data.startsWith("BATTERY:")) {
+                            const battery = parseInt(data.split(":")[1]);
+                            if (!isNaN(battery) && battery >= 0 && battery <= 100) {
+                                updateBattery(battery);
+                            }
+                        }
+                        // 收到数据即视为车辆已连接
+                        carConnected = true;
+                        updateCarStatus(true);
+                    }
+                    // 其他车辆消息
+                    else if (message.startsWith("CAR_MSG:")) {
+                        carConnected = true;
+                        updateCarStatus(true);
+                    }
+                };
+
+                ws.onclose = function() {
+                    isConnected = false;
+                    carConnected = false;
+                    updateServerStatus(false);
+                    updateCarStatus(false);
+                    // 重置距离和电量显示
+                    distanceEl.textContent = "--";
+                    batteryEl.textContent = "--";
+                    batteryIconEl.className = "fas fa-battery-full";
+                    addToHistory('服务器连接已关闭');
+                };
+
+                ws.onerror = function() {
+                    addToHistory('连接错误：请检查服务器');
+                };
+            }
+
+            function disconnect() {
+                if (ws) ws.close();
+                isConnected = false;
+                carConnected = false;
+                updateServerStatus(false);
+                updateCarStatus(false);
+                distanceEl.textContent = "--";
+                batteryEl.textContent = "--";
+                batteryIconEl.className = "fas fa-battery-full";
+            }
+
+            // 发送指令
+            function sendCommand(cmd) {
+                if (!isConnected || !ws || ws.readyState !== WebSocket.OPEN) {
+                    addToHistory('发送失败：未连接服务器');
+                    alert('请先连接服务器');
+                    return false;
+                }
+
+                if (['F','B','L','R','S'].indexOf(cmd) === -1 && cmd === lastSentCmd) {
+                    return true;
+                }
+
+                try {
+                    ws.send(cmd);
+                    lastSentCmd = cmd;
+                    updateLastCommand(cmd);
+                    addToHistory(`发送: ${cmd}`);
+                    return true;
+                } catch (e) {
+                    addToHistory(`发送失败: ${cmd}`);
+                    return false;
+                }
+            }
+
+            // 事件监听
+            joystick.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                isDragging = true;
+                joystick.style.cursor = 'grabbing';
             });
-            
-            tableHTML += `
-                        </tbody>
-                    </table>
-                </div>
-                <div class="instructions">
-                    <strong>安全提示：</strong>
-                    <ul>
-                        <li>请立即备份这些钱包信息并安全存储</li>
-                        <li>切勿通过互联网传输私钥或助记词</li>
-                        <li>操作完成后请清除浏览器历史记录</li>
-                    </ul>
-                </div>
-            `;
-            
-            document.getElementById('walletInfo').innerHTML = tableHTML;
-        }
-        
-        // 切换可见性
-        function toggleVisibility(btn) {
-            const span = btn.previousElementSibling;
-            span.classList.toggle('hidden-content');
-            span.classList.toggle('revealed');
-        }
-        
-        // 复制到剪贴板
-        function copyToClipboard(text) {
-            navigator.clipboard.writeText(text)
-                .then(() => {
-                    alert('已复制到剪贴板！');
-                })
-                .catch(err => {
-                    console.error('复制失败:', err);
-                    alert('复制失败，请手动复制');
-                });
-        }
-        
-        // 导出钱包
-        function exportWallets() {
-            const format = document.getElementById('exportFormat').value;
-            const wallets = [];
-            const rows = document.querySelectorAll('#walletInfo table tbody tr');
-            
-            if (rows.length === 0) {
-                alert('没有可导出的钱包数据');
-                return;
-            }
-            
-            rows.forEach(row => {
-                const cells = row.querySelectorAll('td');
-                wallets.push({
-                    index: cells[0].textContent,
-                    address: cells[1].textContent,
-                    privateKey: cells[2].querySelector('span').textContent,
-                    mnemonic: cells[3].querySelector('span').textContent
+
+            document.addEventListener('mousemove', (e) => {
+                if (isDragging) handleJoystickMove(e.clientX, e.clientY);
+            });
+
+            document.addEventListener('mouseup', () => {
+                if (isDragging) {
+                    isDragging = false;
+                    joystick.style.cursor = 'grab';
+                    resetJoystick();
+                }
+            });
+
+            joystick.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                isDragging = true;
+            }, { passive: false });
+
+            document.addEventListener('touchmove', (e) => {
+                if (isDragging) {
+                    e.preventDefault();
+                    const touch = e.touches[0];
+                    handleJoystickMove(touch.clientX, touch.clientY);
+                }
+            }, { passive: false });
+
+            document.addEventListener('touchend', () => {
+                if (isDragging) {
+                    isDragging = false;
+                    resetJoystick();
+                }
+            });
+
+            document.addEventListener('touchcancel', () => {
+                if (isDragging) {
+                    isDragging = false;
+                    resetJoystick();
+                }
+            });
+
+            connectBtn.addEventListener('click', () => isConnected ? disconnect() : connect());
+
+            gearBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const gear = parseInt(btn.dataset.gear);
+                    if (gear !== currentGear) {
+                        sendCommand(gear.toString()) && (currentGear = gear) && updateGearDisplay(gear);
+                    }
                 });
             });
-            
-            let data, filename, mimeType;
-            
-            switch(format) {
-                case 'txt':
-                    data = wallets.map(w => 
-                        `钱包 ${w.index}:\n` +
-                        `地址: ${w.address}\n` +
-                        `私钥: ${w.privateKey}\n` +
-                        `助记词: ${w.mnemonic}\n` +
-                        `----------------------------------------\n\n`
-                    ).join('');
-                    filename = 'wallets.txt';
-                    mimeType = 'text/plain';
-                    break;
-                    
-                case 'csv':
-                    data = '序号,地址,私钥,助记词\n' + 
-                        wallets.map(w => 
-                            `${w.index},"${w.address}","${w.privateKey}","${w.mnemonic}"`
-                        ).join('\n');
-                    filename = 'wallets.csv';
-                    mimeType = 'text/csv';
-                    break;
-                    
-                default:
-                    data = JSON.stringify(wallets, null, 2);
-                    filename = 'wallets.json';
-                    mimeType = 'application/json';
-            }
-            
-            const blob = new Blob([data], { type: mimeType });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            a.click();
-            URL.revokeObjectURL(url);
-            
-            alert(`钱包数据已导出为 ${filename}！请妥善保存`);
-        }
-        
-        // 清除钱包数据
-        function clearWallets() {
-            if (confirm('确定要清除所有生成的钱包数据吗？此操作不可恢复！')) {
-                document.getElementById('walletInfo').innerHTML = `
-                    <p>所有钱包数据已被清除。</p>
-                    <div class="instructions">
-                        <strong>安全提示：</strong>
-                        <ul>
-                            <li>建议关闭浏览器或清除历史记录以确保安全</li>
-                            <li>如需生成新钱包，请重新设置参数并生成</li>
-                        </ul>
-                    </div>
-                `;
-            }
-        }
+
+            baitBtns.forEach(btn => {
+                btn.addEventListener('click', () => sendCommand(btn.dataset.cmd));
+            });
+
+            // 初始化
+            addToHistory('控制器已加载，等待连接');
+        });
     </script>
 </body>
 </html>
