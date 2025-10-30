@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>打窝船移动端摇杆控制器</title>
+    <title>移动端摇杆控制器</title>
     <style>
         * {
             margin: 0;
@@ -172,7 +172,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>打窝船控制器</h1>
+        <h1>控制器</h1>
         
         <!-- 蓝牙连接 -->
         <div class="connection">
@@ -201,7 +201,7 @@
         <!-- 功能按钮 -->
         <div class="func-btns">
             <button class="func-btn" id="stopBtn">紧急停止</button>
-            <button class="func-btn" id="baitBtn">投放打窝料</button>
+            <button class="func-btn" id="baitBtn">投放料</button>
         </div>
         
         <!-- 状态显示 -->
@@ -318,7 +318,7 @@
                 await characteristic.writeValue(new TextEncoder().encode(cmd));
                 lastCmd = cmd;
                 status.textContent = cmd === "S" ? "指令：停止" 
-                    : cmd === "D" ? "指令：投放打窝料" 
+                    : cmd === "D" ? "指令：投放料" 
                     : `指令：${getDirText(cmd[0])}（速度${cmd[1]}）`;
             } catch (err) {
                 status.textContent = `发送失败：${err.message}`;
@@ -431,7 +431,7 @@
             sendCmd("S");
         });
         
-        // 投放打窝料按钮
+        // 投放料按钮
         baitBtn.addEventListener('click', () => {
             sendCmd("D");
         });
