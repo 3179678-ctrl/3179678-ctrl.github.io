@@ -1,666 +1,439 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>单位换算器与二维码生成器</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
-    <!-- 引入qrcode.js库用于生成二维码 -->
-    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
-    
-    <!-- 配置Tailwind自定义颜色和字体 -->
-    <script>
-       
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        primary: '#627EEA', // 以太坊蓝
-                        secondary: '#2E3440',
-                        accent: '#F59E0B',
-                        light: '#F8FAFC',
-                        dark: '#1E293B',
-                        calculator: '#374151'
-                    },
-                    fontFamily: {
-                        inter: ['Inter', 'system-ui', 'sans-serif'],
-                    },
-                }
-            }
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>打窝船移动端摇杆控制器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent; /* 消除触摸高亮 */
         }
-    </script>
-    
-    <style type="text/tailwindcss">
-         #convert {
-              width: 500px;
-              height: 700px; /* 视窗高度 */
-}
-        @layer utilities {
-            .content-auto {
-                content-visibility: auto;
-            }
-            .card-shadow {
-                box-shadow: 0 10px 25px -5px rgba(98, 126, 234, 0.1), 0 8px 10px -6px rgba(98, 126, 234, 0.1);
-            }
-            .input-focus {
-                @apply focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none;
-            }
-            .btn-hover {
-                @apply hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300;
-            }
-            .calc-btn {
-                @apply w-full h-12 rounded-lg flex items-center justify-center text-xl font-medium transition-all duration-200 active:scale-95;
-            }
-            .calc-number {
-                @apply bg-gray-800 text-white hover:bg-gray-700;
-            }
-            .calc-operation {
-                @apply bg-accent text-white hover:bg-amber-500;
-            }
-            .calc-function {
-                @apply bg-gray-700 text-white hover:bg-gray-600;
-            }
-            .fade-in-out {
-                animation: fadeInOut 2s ease-in-out;
-            }
-            @keyframes fadeInOut {
-                0% { opacity: 0; }
-                20% { opacity: 1; }
-                80% { opacity: 1; }
-                100% { opacity: 0; }
-            }
-            .equal-aspect-container {
-                aspect-ratio: 3/4; /* 统一的宽高比例 */
-                display: flex;
-                flex-direction: column;
-            }
-  
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            width: 100%;
+            max-width: 420px;
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            font-size: 22px;
+            margin-bottom: 20px;
+        }
+        /* 蓝牙连接 */
+        .connection {
+            margin-bottom: 20px;
+        }
+        #connectBtn {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            background: #4CAF50;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        #connectBtn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        /* 速度调节 */
+        .speed-control {
+            margin-bottom: 20px;
+        }
+        .speed-control label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #555;
+            font-size: 15px;
+        }
+        #speedSlider {
+            width: 100%;
+            height: 8px;
+            -webkit-appearance: none;
+            background: #ddd;
+            border-radius: 4px;
+            outline: none;
+        }
+        #speedSlider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: #4CAF50;
+        }
+        #speedInfo {
+            text-align: center;
+            margin-top: 8px;
+            font-size: 16px;
+            color: #333;
+        }
+        /* 核心：带内部文字的摇杆容器 */
+        .joystick-container {
+            position: relative;
+            width: 100%;
+            max-width: 320px;
+            padding-top: 100%; /* 正方形比例（宽=高） */
+            margin: 0 auto 20px;
+            border-radius: 50%;
+            background: #f5f5f5;
+            box-shadow: inset 0 0 8px rgba(0,0,0,0.1);
+        }
+        /* 方向文字（在圈内，靠近边缘） */
+        .dir-text {
+            position: absolute;
+            color: #666;
+            font-size: 18px;
+            font-weight: bold;
+            transform: translate(-50%, -50%); /* 文字中心点对齐定位点 */
+            z-index: 1; /* 文字在底层，确保摇杆能盖住 */
+        }
+        .dir-front { /* 前：圈内上方，距顶部15% */
+            top: 15%;
+            left: 50%;
+        }
+        .dir-back { /* 后：圈内下方，距底部15% */
+            bottom: 15%;
+            left: 50%;
+        }
+        .dir-left { /* 左：圈内左方，距左侧15% */
+            top: 50%;
+            left: 15%;
+        }
+        .dir-right { /* 右：圈内右方，距右侧15% */
+            top: 50%;
+            right: 15%;
+        }
+        /* 中间摇杆（可拖动，覆盖文字时触发） */
+        .joystick {
+            position: absolute;
+            width: 32%; /* 摇杆尺寸：容器的32%，确保能完全盖住文字 */
+            height: 32%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border-radius: 50%;
+            background: #2196F3;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.2);
+            touch-action: none; /* 禁止浏览器默认触摸行为 */
+            z-index: 2; /* 摇杆在顶层，用于覆盖文字 */
+        }
+        /* 功能按钮 */
+        .func-btns {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .func-btn {
+            flex: 1;
+            padding: 12px 0;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            color: white;
+            cursor: pointer;
+        }
+        #stopBtn {
+            background: #f44336;
+        }
+        #baitBtn {
+            background: #ff9800;
+        }
+        /* 状态显示 */
+        #status {
+            text-align: center;
+            padding: 10px;
+            border-radius: 8px;
+            background: #e3f2fd;
+            color: #333;
+            font-size: 15px;
+            min-height: 42px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
     </style>
 </head>
-<body class="bg-gradient-to-br from-slate-50 to-slate-100 min-h-screen font-inter text-secondary">
-    <div class="container mx-auto px-4 py-8 md:py-16 max-w-6xl">
-        <!-- 标题部分 -->
-        <header class="text-center mb-10 md:mb-16">
-            <h1 class="text-[clamp(2rem,5vw,3rem)] font-bold text-dark mb-2">多功能转换工具</h1>
-            <p class="text-slate-600 text-lg">单位换算 · 时间戳转换 · 二维码生成</p>
-        </header>
+<body>
+    <div class="container">
+        <h1>打窝船控制器</h1>
         
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <!-- 单位换算器 -->
-            <div class="equal-aspect-container">
-                <main class="bg-white rounded-2xl card-shadow p-6 md:p-8 flex-grow flex flex-col">
-                    <h2 class="text-xl font-bold mb-6 text-dark">单位换算器</h2>
-                    <div class="space-y-6 flex-grow">
-                        <!-- 输入部分 -->
-                        <div class="space-y-4">
-                            <label class="block text-sm font-medium text-slate-700">输入值</label>
-                            <div class="relative">
-                                <input 
-                                    type="number" 
-                                    id="inputValue" 
-                                    class="w-full px-4 py-3 rounded-lg border border-slate-300 input-focus text-lg pr-12"
-                                    placeholder="输入数值"
-                                    value="1"
-                                >
-                                <button 
-                                    class="copy-btn absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-primary transition-colors p-2"
-                                    data-target="inputValue"
-                                    title="复制输入值"
-                                >
-                                    <i class="fa fa-clipboard" aria-hidden="true"></i>
-                                </button>
-                            </div>
-                            
-                            <label class="block text-sm font-medium text-slate-700">从单位</label>
-                            <select 
-                                id="fromUnit" 
-                                class="w-full px-4 py-3 rounded-lg border border-slate-300 input-focus text-lg bg-white appearance-none"
-                            >
-                                <option value="wei" selected>Wei</option>
-                                <option value="kwei">Kwei (babbage)</option>
-                                <option value="mwei">Mwei (lovelace)</option>
-                                <option value="gwei">Gwei (shannon)</option>
-                                <option value="szabo">Szabo</option>
-                                <option value="finney">Finney</option>
-                                <option value="ether">Ether</option>
-                            </select>
-                        </div>
-                        
-                        <!-- 转换按钮 -->
-                        <div class="pt-2">
-                            <button 
-                                id="convertBtn" 
-                                class="w-full bg-primary text-white py-3 px-6 rounded-lg font-medium text-lg btn-hover flex items-center justify-center gap-2"
-                            >
-                                <i class="fa fa-exchange" aria-hidden="true"></i>
-                                <span>转换单位</span>
-                            </button>
-                        </div>
-                        
-                        <!-- 输出部分 -->
-                        <div class="space-y-4 mt-auto">
-                            <label class="block text-sm font-medium text-slate-700">到单位</label>
-                            <select 
-                                id="toUnit" 
-                                class="w-full px-4 py-3 rounded-lg border border-slate-300 input-focus text-lg bg-white appearance-none"
-                            >
-                                <option value="wei">Wei</option>
-                                <option value="kwei">Kwei (babbage)</option>
-                                <option value="mwei">Mwei (lovelace)</option>
-                                <option value="gwei">Gwei (shannon)</option>
-                                <option value="szabo">Szabo</option>
-                                <option value="finney">Finney</option>
-                                <option value="ether" selected>Ether</option>
-                            </select>
-                            <label class="block text-sm font-medium text-slate-700">转换结果</label>
-                            <div class="relative">
-                                <input 
-                                    type="text" 
-                                    id="outputValue" 
-                                    class="w-full px-4 py-3 rounded-lg border border-slate-300 bg-slate-50 input-focus text-lg pr-12"
-                                    readonly
-                                >
-                                <button 
-                                    class="copy-btn absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-primary transition-colors p-2"
-                                    data-target="outputValue"
-                                    title="复制结果"
-                                >
-                                    <i class="fa fa-clipboard" aria-hidden="true"></i>
-                                </button>
-                            </div>
-                            <div id="copyNotification" class="hidden text-sm text-green-600 fade-in-out">
-                                <i class="fa fa-check-circle" aria-hidden="true"></i> 已复制到剪贴板
-                            </div>
-                        </div>
-                    </div>
-                </main>
-            </div>
-            
-            <!-- 时间戳转换工具 -->
-            <div class="equal-aspect-container">
-                <div class="bg-white rounded-2xl card-shadow p-6 md:p-8 flex-grow flex flex-col">
-                    <h2 class="text-xl font-bold mb-6 text-dark">时间戳转换</h2>
-                    <div class="space-y-6 flex-grow">
-                        <!-- 时间戳输入 -->
-                        <div class="space-y-4">
-                            <label class="block text-sm font-medium text-slate-700">Unix时间戳 (秒)</label>
-                            <div class="relative">
-                                <input 
-                                    type="number" 
-                                    id="timestampInput" 
-                                    class="w-full px-4 py-3 rounded-lg border border-slate-300 input-focus text-lg pr-20"
-                                    placeholder="例如: 1620000000"
-                                >
-                                <button 
-                                    id="nowBtn" 
-                                    class="absolute right-10 top-1/2 -translate-y-1/2 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-1 rounded transition-colors"
-                                >
-                                    当前时间
-                                </button>
-                                <button 
-                                    class="copy-btn absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-primary transition-colors p-2"
-                                    data-target="timestampInput"
-                                    title="复制时间戳"
-                                >
-                                    <i class="fa fa-clipboard" aria-hidden="true"></i>
-                                </button>
-                            </div>
-                        </div>
-                        
-                        <!-- 转换按钮 -->
-                        <div class="pt-2">
-                            <button 
-                                id="timestampConvertBtn" 
-                                class="w-full bg-primary text-white py-3 px-6 rounded-lg font-medium text-lg btn-hover flex items-center justify-center gap-2"
-                            >
-                                <i class="fa fa-clock-o" aria-hidden="true"></i>
-                                <span>转换时间</span>
-                            </button>
-                        </div>
-                        
-                        <!-- 日期时间输出 -->
-                        <div class="space-y-4 mt-auto">
-                            <label class="block text-sm font-medium text-slate-700">本地日期时间</label>
-                            <div class="relative">
-                                <input 
-                                    type="text" 
-                                    id="datetimeOutput" 
-                                    class="w-full px-4 py-3 rounded-lg border border-slate-300 bg-slate-50 input-focus text-lg pr-12"
-                                    readonly
-                                    placeholder="转换后的日期时间"
-                                >
-                                <button 
-                                    class="copy-btn absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-primary transition-colors p-2"
-                                    data-target="datetimeOutput"
-                                    title="复制日期时间"
-                                >
-                                    <i class="fa fa-clipboard" aria-hidden="true"></i>
-                                </button>
-                            </div>
-                            
-                            <label class="block text-sm font-medium text-slate-700">UTC日期时间</label>
-                            <div class="relative">
-                                <input 
-                                    type="text" 
-                                    id="utcDatetimeOutput" 
-                                    class="w-full px-4 py-3 rounded-lg border border-slate-300 bg-slate-50 input-focus text-lg pr-12"
-                                    readonly
-                                    placeholder="UTC日期时间"
-                                >
-                                <button 
-                                    class="copy-btn absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-primary transition-colors p-2"
-                                    data-target="utcDatetimeOutput"
-                                    title="复制UTC时间"
-                                >
-                                    <i class="fa fa-clipboard" aria-hidden="true"></i>
-                                </button>
-                            </div>
-                            
-                            <div id="timestampCopyNotification" class="hidden text-sm text-green-600 fade-in-out">
-                                <i class="fa fa-check-circle" aria-hidden="true"></i> 已复制到剪贴板
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- 计算器 -->
-            <div class="equal-aspect-container">
-                <div class="bg-white rounded-2xl card-shadow p-6 md:p-8 flex-grow flex flex-col">
-                    <h2 class="text-xl font-bold mb-6 text-dark">计算器</h2>
-                    <div class="max-w-md mx-auto w-full flex-grow flex flex-col">
-                        <div class="calculator bg-calculator rounded-xl p-4 flex-grow flex flex-col">
-                            <div class="mb-4">
-                                <input type="text" id="calcDisplay" class="w-full bg-gray-900 text-white text-right py-4 px-4 rounded-lg text-xl font-medium mb-2" readonly>
-                            </div>
-                            <div class="grid grid-cols-4 gap-2 flex-grow">
-                                <button class="calc-btn calc-function" data-value="C">C</button>
-                                <button class="calc-btn calc-function" data-value="←">←</button>
-                                <button class="calc-btn calc-function" data-value="%">%</button>
-                                <button class="calc-btn calc-operation" data-value="/">÷</button>
-                                
-                                <button class="calc-btn calc-number" data-value="7">7</button>
-                                <button class="calc-btn calc-number" data-value="8">8</button>
-                                <button class="calc-btn calc-number" data-value="9">9</button>
-                                <button class="calc-btn calc-operation" data-value="*">×</button>
-                                
-                                <button class="calc-btn calc-number" data-value="4">4</button>
-                                <button class="calc-btn calc-number" data-value="5">5</button>
-                                <button class="calc-btn calc-number" data-value="6">6</button>
-                                <button class="calc-btn calc-operation" data-value="-">-</button>
-                                
-                                <button class="calc-btn calc-number" data-value="1">1</button>
-                                <button class="calc-btn calc-number" data-value="2">2</button>
-                                <button class="calc-btn calc-number" data-value="3">3</button>
-                                <button class="calc-btn calc-operation" data-value="+">+</button>
-                                
-                                <button class="calc-btn calc-number" data-value="±">±</button>
-                                <button class="calc-btn calc-number" data-value="0">0</button>
-                                <button class="calc-btn calc-number" data-value=".">.</button>
-                                <button class="calc-btn calc-operation" data-value="=">=</button>
-                            </div>
-                        </div>
-                        <div class="mt-4 text-center">
-                            <button id="calcToInput" class="text-primary hover:text-primary/80 text-sm font-medium flex items-center gap-1 mx-auto">
-                                <i class="fa fa-arrow-left" aria-hidden="true"></i>
-                                <span>将计算结果填入输入框</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- 二维码生成器 -->
-            <div class="equal-aspect-container">
-                <div class="bg-white rounded-2xl card-shadow p-6 md:p-8 flex-grow flex flex-col">
-                    <h2 class="text-xl font-bold mb-6 text-dark">二维码生成器</h2>
-                    <div class="max-w-md mx-auto w-full flex-grow flex flex-col">
-                        <div class="space-y-6 flex-grow">
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-2">输入要转换为二维码的内容</label>
-                                <textarea 
-                                    id="qrContent" 
-                                    class="w-full px-4 py-3 rounded-lg border border-slate-300 input-focus text-lg h-24"
-                                    placeholder="可输入文本、链接等..."
-                                ></textarea>
-                            </div>
-                            
-                            <div class="flex flex-wrap gap-4">
-                                <div class="flex-1 min-w-[120px]">
-                                    <label class="block text-sm font-medium text-slate-700 mb-2">尺寸</label>
-                                    <select id="qrSize" class="w-full px-4 py-2 rounded-lg border border-slate-300 input-focus text-lg bg-white">
-                                        <option value="128">小 (128x128)</option>
-                                        <option value="256" selected>中 (256x256)</option>
-                                        <option value="384">大 (384x384)</option>
-                                    </select>
-                                </div>
-                                
-                                <div class="flex-1 min-w-[120px]">
-                                    <label class="block text-sm font-medium text-slate-700 mb-2">纠错级别</label>
-                                    <select id="qrErrorLevel" class="w-full px-4 py-2 rounded-lg border border-slate-300 input-focus text-lg bg-white">
-                                        <option value="L">低 (7% 容错)</option>
-                                        <option value="M" selected>中 (15% 容错)</option>
-                                        <option value="Q">较高 (25% 容错)</option>
-                                        <option value="H">高 (30% 容错)</option>
-                                    </select>
-                                </div>
-                            </div>
-                            
-                            <div class="text-center">
-                                <button 
-                                    id="generateQrBtn" 
-                                    class="bg-primary text-white py-3 px-8 rounded-lg font-medium text-lg btn-hover inline-flex items-center gap-2"
-                                >
-                                    <i class="fa fa-qrcode" aria-hidden="true"></i>
-                                    <span>生成二维码</span>
-                                </button>
-                            </div>
-                            
-                            <div id="qrResultContainer" class="flex flex-col items-center justify-center p-4 border border-slate-200 rounded-xl bg-slate-50 hidden">
-                                <div id="qrCode" class="mb-4"></div>
-                                <div class="flex gap-4">
-                                    <button 
-                                        id="downloadQrBtn" 
-                                        class="bg-secondary text-white py-2 px-4 rounded-lg font-medium btn-hover inline-flex items-center gap-1"
-                                        download="qrcode.png"
-                                    >
-                                        <i class="fa fa-download" aria-hidden="true"></i>
-                                        <span>下载</span>
-                                    </button>
-                                    <button 
-                                        id="clearQrBtn" 
-                                        class="bg-slate-300 text-slate-800 py-2 px-4 rounded-lg font-medium btn-hover inline-flex items-center gap-1"
-                                    >
-                                        <i class="fa fa-trash" aria-hidden="true"></i>
-                                        <span>清除</span>
-                                    </button>
-                                </div>
-                            </div>
-                            
-                            <div id="qrNotification" class="hidden text-sm text-green-600 fade-in-out text-center">
-                                <i class="fa fa-check-circle" aria-hidden="true"></i> 二维码生成成功
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+        <!-- 蓝牙连接 -->
+        <div class="connection">
+            <button id="connectBtn">连接蓝牙设备</button>
         </div>
+        
+        <!-- 速度调节 -->
+        <div class="speed-control">
+            <label for="speedSlider">速度调节（1-9级）</label>
+            <input type="range" id="speedSlider" min="1" max="9" value="5">
+            <div id="speedInfo">当前速度：<span id="speedValue">5</span></div>
+        </div>
+        
+        <!-- 核心：带内部方向文字的摇杆 -->
+        <div class="joystick-container" id="joystickContainer">
+            <!-- 圈内方向文字（前/后/左/右） -->
+            <div class="dir-text dir-front" id="dirFront">前</div>
+            <div class="dir-text dir-back" id="dirBack">后</div>
+            <div class="dir-text dir-left" id="dirLeft">左</div>
+            <div class="dir-text dir-right" id="dirRight">右</div>
+            
+            <!-- 中间可拖动摇杆 -->
+            <div class="joystick" id="joystick"></div>
+        </div>
+        
+        <!-- 功能按钮 -->
+        <div class="func-btns">
+            <button class="func-btn" id="stopBtn">紧急停止</button>
+            <button class="func-btn" id="baitBtn">投放打窝料</button>
+        </div>
+        
+        <!-- 状态显示 -->
+        <div id="status">未连接，请点击连接按钮</div>
     </div>
 
     <script>
-        // 确保DOM加载完成后再执行
-        document.addEventListener('DOMContentLoaded', function() {
-            // 单位换算比率 (相对于Wei)
-            const conversionRates = {
-                wei: 1,
-                kwei: 1e3,
-                mwei: 1e6,
-                gwei: 1e9,
-                szabo: 1e12,
-                finney: 1e15,
-                ether: 1e18
+        // 蓝牙配置（与ESP32一致，小写UUID）
+        const SERVICE_UUID = "0000ffe0-0000-1000-8000-00805f9b34fb";
+        const CHARACTERISTIC_UUID = "0000ffe1-0000-1000-8000-00805f9b34fb";
+        
+        // 全局变量
+        let device;
+        let characteristic;
+        let currentSpeed = 5;
+        let isJoystickActive = false;
+        let lastCmd = "S"; // 上一次指令（默认停止）
+        
+        // DOM元素
+        const connectBtn = document.getElementById('connectBtn');
+        const speedSlider = document.getElementById('speedSlider');
+        const speedValue = document.getElementById('speedValue');
+        const status = document.getElementById('status');
+        const joystickContainer = document.getElementById('joystickContainer');
+        const joystick = document.getElementById('joystick');
+        // 方向文字元素（用于判断覆盖）
+        const dirFront = document.getElementById('dirFront');
+        const dirBack = document.getElementById('dirBack');
+        const dirLeft = document.getElementById('dirLeft');
+        const dirRight = document.getElementById('dirRight');
+        const stopBtn = document.getElementById('stopBtn');
+        const baitBtn = document.getElementById('baitBtn');
+        
+        // 摇杆参数（动态计算，适配屏幕）
+        let joystickRect; // 摇杆元素的矩形信息（位置+尺寸）
+        let dirRects = {}; // 四个方向文字的矩形信息
+        let maxOffset; // 摇杆最大偏移量（确保能覆盖文字，不超出容器）
+        
+        // 初始化：计算元素位置和尺寸（关键）
+        function initPositions() {
+            const containerRect = joystickContainer.getBoundingClientRect();
+            const containerHalfSize = containerRect.width / 2;
+            joystickRect = joystick.getBoundingClientRect();
+            const joystickHalfSize = joystickRect.width / 2;
+            
+            // 计算最大偏移量：容器半径 - 摇杆半径（确保摇杆不超出容器）
+            maxOffset = containerHalfSize - joystickHalfSize;
+            
+            // 存储四个方向文字的矩形信息（用于判断覆盖）
+            dirRects = {
+                front: dirFront.getBoundingClientRect(),
+                back: dirBack.getBoundingClientRect(),
+                left: dirLeft.getBoundingClientRect(),
+                right: dirRight.getBoundingClientRect()
             };
-
-            // DOM元素
-            const inputValue = document.getElementById('inputValue');
-            const fromUnit = document.getElementById('fromUnit');
-            const toUnit = document.getElementById('toUnit');
-            const outputValue = document.getElementById('outputValue');
-            const convertBtn = document.getElementById('convertBtn');
-            const copyNotification = document.getElementById('copyNotification');
-            const copyButtons = document.querySelectorAll('.copy-btn');
-            
-            // 计算器元素
-            const calcDisplay = document.getElementById('calcDisplay');
-            const calcButtons = document.querySelectorAll('.calculator button');
-            const calcToInput = document.getElementById('calcToInput');
-            
-            // 二维码生成器元素
-            const qrContent = document.getElementById('qrContent');
-            const qrSize = document.getElementById('qrSize');
-            const qrErrorLevel = document.getElementById('qrErrorLevel');
-            const generateQrBtn = document.getElementById('generateQrBtn');
-            const qrCode = document.getElementById('qrCode');
-            const qrResultContainer = document.getElementById('qrResultContainer');
-            const downloadQrBtn = document.getElementById('downloadQrBtn');
-            const clearQrBtn = document.getElementById('clearQrBtn');
-            const qrNotification = document.getElementById('qrNotification');
-            
-            // 时间戳转换元素
-            const timestampInput = document.getElementById('timestampInput');
-            const datetimeOutput = document.getElementById('datetimeOutput');
-            const utcDatetimeOutput = document.getElementById('utcDatetimeOutput');
-            const timestampConvertBtn = document.getElementById('timestampConvertBtn');
-            const nowBtn = document.getElementById('nowBtn');
-            const timestampCopyNotification = document.getElementById('timestampCopyNotification');
-
-            // 转换函数 - 单位换算
-            function convertUnit() {
-                // 确保获取最新的输入值
-                const value = parseFloat(inputValue.value);
-                if (isNaN(value)) {
-                    outputValue.value = '请输入有效数字';
-                    return;
-                }
-
-                const from = fromUnit.value;
-                const to = toUnit.value;
-
-                // 先转换为Wei，再转换为目标单位
-                const valueInWei = value * conversionRates[from];
-                const result = valueInWei / conversionRates[to];
-
-                // 格式化结果，避免科学计数法显示问题
-                if (Math.abs(result) >= 1e12 || Math.abs(result) < 1e-6) {
-                    outputValue.value = result.toExponential(8);
-                } else {
-                    // 根据数值大小动态调整小数位数
-                    let decimalPlaces = 8;
-                    if (Math.abs(result) >= 1) {
-                        decimalPlaces = 6;
-                    } else if (Math.abs(result) >= 0.001) {
-                        decimalPlaces = 6;
-                    }
-                    
-                    // 移除末尾多余的0
-                    outputValue.value = parseFloat(result.toFixed(decimalPlaces)).toString();
-                }
-            }
-
-            // 复制到剪贴板功能
-            function copyToClipboard(targetId, notificationElement) {
-                const targetElement = document.getElementById(targetId);
-                if (!targetElement || !targetElement.value) return;
-
-                targetElement.select();
-                document.execCommand('copy');
-                
-                // 显示复制通知
-                notificationElement.classList.remove('hidden');
-                setTimeout(() => {
-                    notificationElement.classList.add('hidden');
-                }, 2000);
-            }
-
-            // 计算器功能
-            function handleCalculatorInput(value) {
-                if (value === 'C') {
-                    calcDisplay.value = '';
-                } else if (value === '←') {
-                    calcDisplay.value = calcDisplay.value.slice(0, -1);
-                } else if (value === '=') {
-                    try {
-                        // 替换×为*，÷为/以符合JavaScript语法
-                        const expression = calcDisplay.value.replace('×', '*').replace('÷', '/');
-                        calcDisplay.value = eval(expression);
-                    } catch (e) {
-                        calcDisplay.value = '错误';
-                    }
-                } else if (value === '±') {
-                    if (calcDisplay.value) {
-                        calcDisplay.value = calcDisplay.value.startsWith('-') 
-                            ? calcDisplay.value.slice(1) 
-                            : '-' + calcDisplay.value;
-                    }
-                } else if (value === '%') {
-                    if (calcDisplay.value) {
-                        calcDisplay.value = parseFloat(calcDisplay.value) / 100;
-                    }
-                } else {
-                    // 避免重复输入小数点
-                    if (value === '.' && calcDisplay.value.includes('.')) {
-                        return;
-                    }
-                    calcDisplay.value += value;
-                }
-            }
-
-            // 将计算结果填入输入框
-            function copyCalcResultToInput() {
-                if (calcDisplay.value && calcDisplay.value !== '错误') {
-                    inputValue.value = calcDisplay.value;
-                    convertUnit(); // 自动转换
-                }
-            }
-            
-            // 生成二维码
-            function generateQRCode() {
-                const content = qrContent.value.trim();
-                if (!content) {
-                    alert('请输入要生成二维码的内容');
-                    return;
-                }
-                
-                // 清空之前的二维码
-                qrCode.innerHTML = '';
-                
-                // 生成新的二维码
-                QRCode.toCanvas(content, {
-                    width: parseInt(qrSize.value),
-                    errorCorrectionLevel: qrErrorLevel.value,
-                    margin: 2
-                }, function (error, canvas) {
-                    if (error) {
-                        console.error(error);
-                        alert('生成二维码失败: ' + error.message);
-                        return;
-                    }
-                    
-                    // 显示二维码
-                    qrCode.appendChild(canvas);
-                    qrResultContainer.classList.remove('hidden');
-                    
-                    // 更新下载链接
-                    downloadQrBtn.href = canvas.toDataURL('image/png');
-                    
-                    // 显示成功通知
-                    qrNotification.classList.remove('hidden');
-                    setTimeout(() => {
-                        qrNotification.classList.add('hidden');
-                    }, 2000);
+        }
+        
+        // 页面加载+窗口 resize 时重新计算位置
+        window.addEventListener('load', () => {
+            initPositions();
+            window.addEventListener('resize', initPositions);
+        });
+        
+        // 速度调节（触摸滑动进度条）
+        speedSlider.addEventListener('input', (e) => {
+            currentSpeed = parseInt(e.target.value);
+            speedValue.textContent = currentSpeed;
+        });
+        
+        // 蓝牙连接逻辑
+        connectBtn.addEventListener('click', async () => {
+            try {
+                status.textContent = "搜索设备中...请选择'BaitBoat'";
+                // 请求蓝牙设备（仅移动端触摸交互）
+                device = await navigator.bluetooth.requestDevice({
+                    filters: [{ name: "BaitBoat" }],
+                    optionalServices: [SERVICE_UUID]
                 });
-            }
-            
-            // 清除二维码
-            function clearQRCode() {
-                qrContent.value = '';
-                qrCode.innerHTML = '';
-                qrResultContainer.classList.add('hidden');
-            }
-            
-            // 时间戳转换功能
-            function formatDate(date) {
-                const year = date.getFullYear();
-                const month = String(date.getMonth() + 1).padStart(2, '0');
-                const day = String(date.getDate()).padStart(2, '0');
-                const hours = String(date.getHours()).padStart(2, '0');
-                const minutes = String(date.getMinutes()).padStart(2, '0');
-                const seconds = String(date.getSeconds()).padStart(2, '0');
+                // 连接GATT服务
+                const server = await device.gatt.connect();
+                const service = await server.getPrimaryService(SERVICE_UUID);
+                characteristic = await service.getCharacteristic(CHARACTERISTIC_UUID);
                 
-                return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-            }
-            
-            function formatUTCDate(date) {
-                const year = date.getUTCFullYear();
-                const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-                const day = String(date.getUTCDate()).padStart(2, '0');
-                const hours = String(date.getUTCHours()).padStart(2, '0');
-                const minutes = String(date.getUTCMinutes()).padStart(2, '0');
-                const seconds = String(date.getUTCSeconds()).padStart(2, '0');
+                // 更新状态
+                connectBtn.disabled = true;
+                connectBtn.textContent = "已连接";
+                status.textContent = "连接成功，拖动摇杆盖住文字控制方向";
                 
-                return `${year}-${month}-${day} ${hours}:${minutes}:${seconds} UTC`;
-            }
-            
-            function convertTimestamp() {
-                const timestamp = parseInt(timestampInput.value);
-                if (isNaN(timestamp)) {
-                    datetimeOutput.value = '请输入有效的时间戳';
-                    utcDatetimeOutput.value = '';
-                    return;
-                }
-                
-                const date = new Date(timestamp * 1000); // 转换为毫秒
-                datetimeOutput.value = formatDate(date);
-                utcDatetimeOutput.value = formatUTCDate(date);
-            }
-            
-            function setCurrentTimestamp() {
-                const now = Math.floor(Date.now() / 1000); // 当前时间戳（秒）
-                timestampInput.value = now;
-                convertTimestamp();
-            }
-
-            // 事件监听 - 单位换算
-            convertBtn.addEventListener('click', convertUnit);
-            inputValue.addEventListener('input', convertUnit);
-            fromUnit.addEventListener('change', convertUnit);
-            toUnit.addEventListener('change', convertUnit);
-            
-            // 事件监听 - 复制功能
-            copyButtons.forEach(button => {
-                button.addEventListener('click', () => {
-                    const targetId = button.getAttribute('data-target');
-                    // 确定使用哪个通知元素
-                    const notification = targetId.includes('timestamp') || targetId.includes('datetime') 
-                        ? timestampCopyNotification 
-                        : copyNotification;
-                    
-                    copyToClipboard(targetId, notification);
+                // 监听断开连接
+                device.addEventListener('gattserverdisconnected', () => {
+                    status.textContent = "设备已断开";
+                    connectBtn.disabled = false;
+                    connectBtn.textContent = "重新连接";
+                    device = null;
+                    characteristic = null;
+                    stopJoystick(); // 断开时停止摇杆
                 });
-            });
+            } catch (err) {
+                status.textContent = err.name === 'NotFoundError' 
+                    ? "未找到设备或已取消" 
+                    : `连接失败：${err.message}`;
+            }
+        });
+        
+        // 发送指令（避免重复发送）
+        async function sendCmd(cmd) {
+            if (!characteristic) {
+                status.textContent = "未连接，无法发送指令";
+                return;
+            }
+            if (cmd === lastCmd) return; // 相同指令不重复发
             
-            // 事件监听 - 计算器
-            calcButtons.forEach(button => {
-                button.addEventListener('click', () => {
-                    const value = button.getAttribute('data-value');
-                    handleCalculatorInput(value);
-                });
-            });
-            calcToInput.addEventListener('click', copyCalcResultToInput);
+            try {
+                await characteristic.writeValue(new TextEncoder().encode(cmd));
+                lastCmd = cmd;
+                status.textContent = cmd === "S" ? "指令：停止" 
+                    : cmd === "D" ? "指令：投放打窝料" 
+                    : `指令：${getDirText(cmd[0])}（速度${cmd[1]}）`;
+            } catch (err) {
+                status.textContent = `发送失败：${err.message}`;
+            }
+        }
+        
+        // 辅助：指令方向转文字（如F→前）
+        function getDirText(dir) {
+            switch(dir) {
+                case "F": return "前";
+                case "B": return "后";
+                case "L": return "左";
+                case "R": return "右";
+                default: return "";
+            }
+        }
+        
+        // 核心逻辑：判断摇杆是否完全盖住文字
+        function isJoystickCoverText(joystickCenter, textRect) {
+            // 摇杆中心坐标 + 摇杆半径 = 摇杆边缘
+            const joystickLeft = joystickCenter.x - joystickRect.width/2;
+            const joystickRight = joystickCenter.x + joystickRect.width/2;
+            const joystickTop = joystickCenter.y - joystickRect.height/2;
+            const joystickBottom = joystickCenter.y + joystickRect.height/2;
             
-            // 事件监听 - 二维码生成器
-            generateQrBtn.addEventListener('click', generateQRCode);
-            clearQrBtn.addEventListener('click', clearQRCode);
+            // 文字完全在摇杆内部 = 摇杆覆盖文字
+            return (
+                joystickLeft <= textRect.left && 
+                joystickRight >= textRect.right && 
+                joystickTop <= textRect.top && 
+                joystickBottom >= textRect.bottom
+            );
+        }
+        
+        // 摇杆触摸开始
+        joystick.addEventListener('touchstart', (e) => {
+            e.preventDefault(); // 阻止页面滚动
+            isJoystickActive = true;
+            // 绑定触摸移动/结束事件
+            document.addEventListener('touchmove', moveJoystick);
+            document.addEventListener('touchend', stopJoystick);
+        });
+        
+        // 摇杆触摸移动（核心：判断覆盖文字）
+        function moveJoystick(e) {
+            if (!isJoystickActive) return;
+            e.preventDefault();
             
-            // 支持按Enter键生成二维码
-            qrContent.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    generateQRCode();
-                }
-            });
+            // 获取触摸点坐标（仅第一个触摸点）
+            const touch = e.touches[0];
+            const containerRect = joystickContainer.getBoundingClientRect();
+            const containerCenter = { // 摇杆容器中心点
+                x: containerRect.left + containerRect.width/2,
+                y: containerRect.top + containerRect.height/2
+            };
             
-            // 事件监听 - 时间戳转换
-            timestampConvertBtn.addEventListener('click', convertTimestamp);
-            nowBtn.addEventListener('click', setCurrentTimestamp);
-            timestampInput.addEventListener('input', convertTimestamp);
-
-            // 初始转换
-            convertUnit();
-            // 设置当前时间戳作为默认值
-            setCurrentTimestamp();
+            // 计算摇杆偏移量（相对于容器中心）
+            let offsetX = touch.clientX - containerCenter.x;
+            let offsetY = touch.clientY - containerCenter.y;
+            
+            // 限制偏移量：不超出容器
+            const offsetDist = Math.sqrt(offsetX**2 + offsetY**2);
+            if (offsetDist > maxOffset) {
+                const scale = maxOffset / offsetDist;
+                offsetX *= scale;
+                offsetY *= scale;
+            }
+            
+            // 更新摇杆位置
+            joystick.style.transform = `translate(calc(-50% + ${offsetX}px), calc(-50% + ${offsetY}px))`;
+            
+            // 计算当前摇杆中心点坐标（用于判断覆盖）
+            const joystickCenter = {
+                x: containerCenter.x + offsetX,
+                y: containerCenter.y + offsetY
+            };
+            
+            // 判断是否覆盖某个方向文字
+            let targetCmd = "S"; // 默认停止
+            if (isJoystickCoverText(joystickCenter, dirRects.front)) {
+                targetCmd = `F${currentSpeed}`; // 覆盖"前"→前进
+            } else if (isJoystickCoverText(joystickCenter, dirRects.back)) {
+                targetCmd = `B${currentSpeed}`; // 覆盖"后"→后退
+            } else if (isJoystickCoverText(joystickCenter, dirRects.left)) {
+                targetCmd = `L${currentSpeed}`; // 覆盖"左"→左转
+            } else if (isJoystickCoverText(joystickCenter, dirRects.right)) {
+                targetCmd = `R${currentSpeed}`; // 覆盖"右"→右转
+            }
+            
+            // 发送目标指令
+            sendCmd(targetCmd);
+        }
+        
+        // 摇杆触摸结束（复位+停止）
+        function stopJoystick() {
+            if (!isJoystickActive) return;
+            isJoystickActive = false;
+            // 移除事件监听
+            document.removeEventListener('touchmove', moveJoystick);
+            document.removeEventListener('touchend', stopJoystick);
+            // 摇杆复位
+            joystick.style.transform = "translate(-50%, -50%)";
+            // 发送停止指令
+            sendCmd("S");
+        }
+        
+        // 紧急停止按钮
+        stopBtn.addEventListener('click', () => {
+            stopJoystick();
+            sendCmd("S");
+        });
+        
+        // 投放打窝料按钮
+        baitBtn.addEventListener('click', () => {
+            sendCmd("D");
         });
     </script>
 </body>
