@@ -206,7 +206,7 @@
                 <div class="text-sm text-gray-400 mb-6">
                     建议操作：
                     1. 检查小车端WebSocket服务是否正常运行
-                    2. 使用wscat工具测试：wscat -c ws://192.168.1.65:10010
+                    2. 使用wscat工具测试：wscat -c ws://192.168.1.65:8765
                 </div>
                 <div class="flex justify-end">
                     <button id="closeErrorModal" class="px-4 py-2 bg-primary rounded-lg hover:bg-primary/90 transition-colors">
@@ -225,7 +225,7 @@
         const CONSTANTS = {
             DEFAULT_SPEED_LEVEL: 5,       
             DEFAULT_IP: '192.168.1.65', 
-            DEFAULT_PORT: 10010,    
+            DEFAULT_PORT: 8765,    
             // 提高阈值确保完全覆盖箭头才触发
             JOYSTICK_THRESHOLD: 60, 
             TEST_TIMEOUT: 8000,
