@@ -1,440 +1,668 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>摇杆控制器</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent; /* 消除触摸高亮 */
+    <title>控制器</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3b82f6',
+                        secondary: '#10b981',
+                        danger: '#ef4444',
+                        warning: '#f59e0b',
+                    }
+                }
+            }
         }
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f0f0f0;
-            padding: 15px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-height: 100vh;
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .control-btn {
+                @apply transition-all duration-200 ease-in-out shadow-md active:scale-95 active:shadow-sm;
+            }
+            .notification {
+                @apply fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 transition-all duration-300 transform translate-y-0 opacity-100;
+            }
+            .notification-hide {
+                @apply translate-y-[-20px] opacity-0 pointer-events-none;
+            }
+            .joystick-arrow {
+                @apply absolute text-white/30 pointer-events-none;
+            }
+            .log-item {
+                @apply text-xs py-1 border-b border-gray-700;
+            }
         }
-        .container {
-            width: 100%;
-            max-width: 420px;
-            background: white;
-            padding: 20px;
-            border-radius: 15px;
-            box-shadow: 0 0 15px rgba(0,0,0,0.1);
-        }
-        h1 {
-            text-align: center;
-            color: #333;
-            font-size: 22px;
-            margin-bottom: 20px;
-        }
-        /* 蓝牙连接 */
-        .connection {
-            margin-bottom: 20px;
-        }
-        #connectBtn {
-            width: 100%;
-            padding: 12px;
-            border: none;
-            border-radius: 8px;
-            background: #4CAF50;
-            color: white;
-            font-size: 16px;
-            cursor: pointer;
-        }
-        #connectBtn:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-        }
-        /* 速度调节 */
-        .speed-control {
-            margin-bottom: 20px;
-        }
-        .speed-control label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: bold;
-            color: #555;
-            font-size: 15px;
-        }
-        #speedSlider {
-            width: 100%;
-            height: 8px;
-            -webkit-appearance: none;
-            background: #ddd;
-            border-radius: 4px;
-            outline: none;
-        }
-        #speedSlider::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            width: 22px;
-            height: 22px;
-            border-radius: 50%;
-            background: #4CAF50;
-        }
-        #speedInfo {
-            text-align: center;
-            margin-top: 8px;
-            font-size: 16px;
-            color: #333;
-        }
-        /* 核心：带内部文字的摇杆容器 */
-        .joystick-container {
+
+        /* 摇杆样式 */
+        #joystick-outer {
+            touch-action: none;
             position: relative;
-            width: 100%;
-            max-width: 320px;
-            padding-top: 100%; /* 正方形比例（宽=高） */
-            margin: 0 auto 20px;
+            width: 280px;
+            height: 280px;
             border-radius: 50%;
-            background: #f5f5f5;
-            box-shadow: inset 0 0 8px rgba(0,0,0,0.1);
+            background-color: rgba(59, 130, 246, 0.1);
+            border: 4px solid rgba(59, 130, 246, 0.3);
         }
-        /* 方向文字（在圈内，靠近边缘） */
-        .dir-text {
+        
+        #joystick-inner {
+            touch-action: none;
             position: absolute;
-            color: #666;
-            font-size: 18px;
-            font-weight: bold;
-            transform: translate(-50%, -50%); /* 文字中心点对齐定位点 */
-            z-index: 1; /* 文字在底层，确保摇杆能盖住 */
-        }
-        .dir-front { /* 前：圈内上方，距顶部15% */
-            top: 15%;
-            left: 50%;
-        }
-        .dir-back { /* 后：圈内下方，距底部15% */
-            bottom: 15%;
-            left: 50%;
-        }
-        .dir-left { /* 左：圈内左方，距左侧15% */
-            top: 50%;
-            left: 15%;
-        }
-        .dir-right { /* 右：圈内右方，距右侧15% */
-            top: 50%;
-            right: 15%;
-        }
-        /* 中间摇杆（可拖动，覆盖文字时触发） */
-        .joystick {
-            position: absolute;
-            width: 32%; /* 摇杆尺寸：容器的32%，确保能完全盖住文字 */
-            height: 32%;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
+            width: 100px;
+            height: 100px;
             border-radius: 50%;
-            background: #2196F3;
-            box-shadow: 0 3px 6px rgba(0,0,0,0.2);
-            touch-action: none; /* 禁止浏览器默认触摸行为 */
-            z-index: 2; /* 摇杆在顶层，用于覆盖文字 */
+            background-color: rgba(59, 130, 246, 0.7);
+            left: 90px;
+            top: 90px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+            transition: all 0.1s ease-out;
         }
-        /* 功能按钮 */
-        .func-btns {
-            display: flex;
-            gap: 12px;
-            margin-bottom: 20px;
-        }
-        .func-btn {
-            flex: 1;
-            padding: 12px 0;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            color: white;
+
+        /* 进度条样式 */
+        #speedSlider::-webkit-slider-thumb {
+            appearance: none;
+            height: 24px;
+            width: 24px;
+            border-radius: 50%;
+            background: #3b82f6;
             cursor: pointer;
-        }
-        #stopBtn {
-            background: #f44336;
-        }
-        #baitBtn {
-            background: #ff9800;
-        }
-        /* 状态显示 */
-        #status {
-            text-align: center;
-            padding: 10px;
-            border-radius: 8px;
-            background: #e3f2fd;
-            color: #333;
-            font-size: 15px;
-            min-height: 42px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
         }
     </style>
 </head>
-<body>
-    <div class="container">
-        <h1>控制器</h1>
-        
-        <!-- 蓝牙连接 -->
-        <div class="connection">
-            <button id="connectBtn">连接蓝牙设备</button>
-        </div>
-        
-        <!-- 速度调节 -->
-        <div class="speed-control">
-            <label for="speedSlider">速度调节（1-9级）</label>
-            <input type="range" id="speedSlider" min="1" max="9" value="5">
-            <div id="speedInfo">当前速度：<span id="speedValue">5</span></div>
-        </div>
-        
-        <!-- 核心：带内部方向文字的摇杆 -->
-        <div class="joystick-container" id="joystickContainer">
-            <!-- 圈内方向文字（前/后/左/右） -->
-            <div class="dir-text dir-front" id="dirFront">前</div>
-            <div class="dir-text dir-back" id="dirBack">后</div>
-            <div class="dir-text dir-left" id="dirLeft">左</div>
-            <div class="dir-text dir-right" id="dirRight">右</div>
+<body class="bg-gray-900 text-white min-h-screen select-none">
+    <div class="container mx-auto px-4 py-6">
+        <!-- 头部区域 -->
+        <header class="text-center mb-6">
+            <!-- 速度控制 -->
+            <div class="bg-gray-800 rounded-2xl p-6 shadow-xl w-full max-w-md mt-6 mx-auto">
+                <div class="space-y-4 px-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-gray-300">当前速度级别:</span>
+                        <span id="speedLevel" class="text-primary font-bold text-xl">5</span>
+                        <span class="text-gray-400">级</span>
+                    </div>
+                    <input id="speedSlider" type="range" min="1" max="9" value="5" 
+                           class="w-full h-3 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                    <div class="flex justify-between text-sm text-gray-400">
+                        <span>30</span>
+                        <span>150</span>
+                        <span>255</span>
+                    </div>
+                </div>
+            </div>
+
             
-            <!-- 中间可拖动摇杆 -->
-            <div class="joystick" id="joystick"></div>
+
+        <!-- 主体内容：网格布局 -->
+        <main class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- 摇杆控制区域 - 左侧（已删除摇杆控制h2标题） -->
+            <section class="lg:col-span-2 flex flex-col items-center">
+                <div class="bg-gray-800 rounded-2xl p-6 shadow-xl w-full max-w-md">
+                    <div class="flex justify-center">
+                        <div id="joystick-outer">
+                            <!-- 方向箭头 -->
+                            <div class="joystick-arrow top-4 left-1/2 transform -translate-x-1/2 text-2xl">
+                                <i class="fas fa-arrow-up"></i>
+                            </div>
+                            <div class="joystick-arrow bottom-4 left-1/2 transform -translate-x-1/2 text-2xl">
+                                <i class="fas fa-arrow-down"></i>
+                            </div>
+                            <div class="joystick-arrow left-4 top-1/2 transform -translate-y-1/2 text-2xl">
+                                <i class="fas fa-arrow-left"></i>
+                            </div>
+                            <div class="joystick-arrow right-4 top-1/2 transform -translate-y-1/2 text-2xl">
+                                <i class="fas fa-arrow-right"></i>
+                            </div>
+                            
+                            <!-- 摇杆 -->
+                            <div id="joystick-inner"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- 信息和设置面板 - 右侧（已删除诊断日志模块） -->
+            <section class="bg-gray-800 rounded-2xl p-6 shadow-xl">
+                <div class="space-y-6">                    
+                    <!-- 投放控制 -->
+                    <div class="bg-gray-700 rounded-xl p-4">
+                        <button id="deployOnceBtn" class="control-btn w-full bg-warning text-white p-6 rounded-xl text-lg">
+                            <i class="fas fa-arrow-circle-down mr-2"></i>投放
+                        </button>
+                    </div>
+                    
+                    <!-- 连接状态信息 -->
+                    <div class="bg-gray-700 rounded-xl p-4">
+                        <h3 class="text-lg font-semibold mb-3">
+                            <i class="fas fa-signal mr-2"></i>连接状态
+                        </h3>
+                        <div class="space-y-2 text-sm">
+                            <div class="flex justify-between">
+                                <span class="text-gray-300">连接状态:</span>
+                                <span id="connectionDetails" class="text-danger">未连接</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-300">最后指令:</span>
+                                <span id="lastCommand" class="text-gray-400">无</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-300">发送指令:</span>
+                                <span id="sentCommand" class="text-gray-400">无</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-300">连接时长:</span>
+                                <span id="connectionTime" class="text-gray-400">00:00:00</span>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- 连接状态 + 连接按钮（已删除测试连接按钮） -->
+            <div class="flex flex-row items-center justify-center gap-3 mt-4 flex-wrap">
+                <div id="connectionStatus" class="px-4 py-2 bg-danger rounded-full text-sm">
+                    <i class="fas fa-wifi mr-1"></i>未连接
+                </div>
+                <button id="connectBtn" class="px-4 py-2 bg-primary rounded-full hover:bg-primary/90 transition-colors text-sm">
+                    <i class="fas fa-plug mr-1"></i>连接
+                </button>
+            </div>
+        </header>
+                    <!-- 服务器连接设置 -->
+                    <div class="bg-gray-700 rounded-xl p-4">
+                        <h3 class="text-lg font-semibold mb-3">
+                            <i class="fas fa-server mr-2"></i>服务器设置
+                        </h3>
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-sm text-gray-300 mb-1">服务器IP地址</label>
+                                <input type="text" id="serverIp" value="192.168.1.65" 
+                                       class="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-sm text-gray-300 mb-1">端口号</label>
+                                <input type="number" id="serverPort" value="10010" min="1" max="65535"
+                                       class="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm">
+                            </div>
+                            <button id="saveServerSettingsBtn" class="w-full bg-primary text-white py-2 rounded-lg hover:bg-primary/90 transition-colors text-sm">
+                                <i class="fas fa-save mr-2"></i>保存设置
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+        
+        <!-- 连接错误详情模态框 -->
+        <div id="errorModal" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 hidden">
+            <div class="bg-gray-800 rounded-xl p-6 max-w-md w-full mx-4">
+                <h3 class="text-xl font-bold text-danger mb-4">
+                    <i class="fas fa-exclamation-circle mr-2"></i>连接失败
+                </h3>
+                <div id="errorDetails" class="text-gray-300 mb-6 whitespace-pre-line"></div>
+                <div class="text-sm text-gray-400 mb-6">
+                    建议操作：
+                    1. 检查小车端WebSocket服务是否正常运行
+                    2. 使用wscat工具测试：wscat -c ws://192.168.1.65:10010
+                </div>
+                <div class="flex justify-end">
+                    <button id="closeErrorModal" class="px-4 py-2 bg-primary rounded-lg hover:bg-primary/90 transition-colors">
+                        关闭
+                    </button>
+                </div>
+            </div>
         </div>
         
-        <!-- 功能按钮 -->
-        <div class="func-btns">
-            <button class="func-btn" id="stopBtn">紧急停止</button>
-            <button class="func-btn" id="baitBtn">投放料</button>
-        </div>
-        
-        <!-- 状态显示 -->
-        <div id="status">未连接，请点击连接按钮</div>
+        <!-- 通知容器：统一管理通知 -->
+        <div id="notificationContainer" class="fixed top-0 right-0 pointer-events-none"></div>
     </div>
 
     <script>
-        // 蓝牙配置（与ESP32一致，小写UUID）
-        const SERVICE_UUID = "0000ffe0-0000-1000-8000-00805f9b34fb";
-        const CHARACTERISTIC_UUID = "0000ffe1-0000-1000-8000-00805f9b34fb";
-        
-        // 全局变量
-        let device;
-        let characteristic;
-        let currentSpeed = 5;
-        let isJoystickActive = false;
-        let lastCmd = "S"; // 上一次指令（默认停止）
-        
-        // DOM元素
-        const connectBtn = document.getElementById('connectBtn');
-        const speedSlider = document.getElementById('speedSlider');
-        const speedValue = document.getElementById('speedValue');
-        const status = document.getElementById('status');
-        const joystickContainer = document.getElementById('joystickContainer');
-        const joystick = document.getElementById('joystick');
-        // 方向文字元素（用于判断覆盖）
-        const dirFront = document.getElementById('dirFront');
-        const dirBack = document.getElementById('dirBack');
-        const dirLeft = document.getElementById('dirLeft');
-        const dirRight = document.getElementById('dirRight');
-        const stopBtn = document.getElementById('stopBtn');
-        const baitBtn = document.getElementById('baitBtn');
-        
-        // 摇杆参数（动态计算，适配屏幕）
-        let joystickRect; // 摇杆元素的矩形信息（位置+尺寸）
-        let dirRects = {}; // 四个方向文字的矩形信息
-        let maxOffset; // 摇杆最大偏移量（确保能覆盖文字，不超出容器）
-        
-        // 初始化：计算元素位置和尺寸（关键）
-        function initPositions() {
-            const containerRect = joystickContainer.getBoundingClientRect();
-            const containerHalfSize = containerRect.width / 2;
-            joystickRect = joystick.getBoundingClientRect();
-            const joystickHalfSize = joystickRect.width / 2;
-            
-            // 计算最大偏移量：容器半径 - 摇杆半径（确保摇杆不超出容器）
-            maxOffset = containerHalfSize - joystickHalfSize;
-            
-            // 存储四个方向文字的矩形信息（用于判断覆盖）
-            dirRects = {
-                front: dirFront.getBoundingClientRect(),
-                back: dirBack.getBoundingClientRect(),
-                left: dirLeft.getBoundingClientRect(),
-                right: dirRight.getBoundingClientRect()
-            };
-        }
-        
-        // 页面加载+窗口 resize 时重新计算位置
-        window.addEventListener('load', () => {
-            initPositions();
-            window.addEventListener('resize', initPositions);
-        });
-        
-        // 速度调节（触摸滑动进度条）
-        speedSlider.addEventListener('input', (e) => {
-            currentSpeed = parseInt(e.target.value);
-            speedValue.textContent = currentSpeed;
-        });
-        
-        // 蓝牙连接逻辑
-        connectBtn.addEventListener('click', async () => {
-            try {
-                status.textContent = "搜索设备中...请选择'BaitBoat'";
-                // 请求蓝牙设备（仅移动端触摸交互）
-                device = await navigator.bluetooth.requestDevice({
-                    filters: [{ name: "BaitBoat" }],
-                    optionalServices: [SERVICE_UUID]
+        // 常量定义
+        const CONSTANTS = {
+            DEFAULT_SPEED_LEVEL: 5,       
+            DEFAULT_IP: '192.168.1.65', 
+            DEFAULT_PORT: 10010,    
+            // 提高阈值确保完全覆盖箭头才触发
+            JOYSTICK_THRESHOLD: 60, 
+            TEST_TIMEOUT: 8000,
+            // 速度级别对应的数值 {1:30, 2:60, ..., 9:255}
+            SPEED_VALUES: [0, 30, 60, 90, 120, 150, 180, 210, 240, 255]
+        };
+
+        // 主控制器类
+        class CarController {
+            constructor() {
+                // DOM元素缓存（已移除testConnBtn、diagnoseLog相关）
+                this.dom = {
+                    connectBtn: document.getElementById('connectBtn'),
+                    connectionStatus: document.getElementById('connectionStatus'),
+                    connectionDetails: document.getElementById('connectionDetails'),
+                    connectionTime: document.getElementById('connectionTime'),
+                    serverIp: document.getElementById('serverIp'),
+                    serverPort: document.getElementById('serverPort'),
+                    saveServerSettingsBtn: document.getElementById('saveServerSettingsBtn'),
+                    speedSlider: document.getElementById('speedSlider'),
+                    speedLevel: document.getElementById('speedLevel'), // 速度级别
+                    speedValue: document.getElementById('speedValue'), // 实际发送的数值
+                    joystickOuter: document.getElementById('joystick-outer'),
+                    joystickInner: document.getElementById('joystick-inner'),
+                    deployOnceBtn: document.getElementById('deployOnceBtn'),
+                    lastCommand: document.getElementById('lastCommand'),
+                    sentCommand: document.getElementById('sentCommand'),
+                    commandStatus: document.getElementById('commandStatus'),
+                    errorModal: document.getElementById('errorModal'),
+                    errorDetails: document.getElementById('errorDetails'),
+                    closeErrorModal: document.getElementById('closeErrorModal'),
+                    notificationContainer: document.getElementById('notificationContainer')
+                };
+
+                // 状态管理
+                this.state = {
+                    isConnected: false,
+                    websocket: null,
+                    currentSpeedLevel: CONSTANTS.DEFAULT_SPEED_LEVEL,
+                    currentSpeedValue: CONSTANTS.SPEED_VALUES[CONSTANTS.DEFAULT_SPEED_LEVEL],
+                    connectionStartTime: null,
+                    connectionTimer: null,
+                    joystickActive: false,
+                    joystickTimeout: null,
+                    lastSentCommand: null
+                };
+
+                // 摇杆配置
+                this.joystick = {
+                    centerX: 90,
+                    centerY: 90,
+                    maxDistance: 90,
+                    currentX: 90,
+                    currentY: 90
+                };
+
+                // 初始化
+                this.init();
+            }
+
+            init() {
+                this.loadSettings();
+                this.bindEvents();
+                this.updateSpeedUI();
+            }
+
+            bindEvents() {
+                // 连接按钮事件
+                this.dom.connectBtn.addEventListener('click', () => {
+                    if (this.state.isConnected) this.disconnectWebSocket();
+                    else this.connectWebSocket();
                 });
-                // 连接GATT服务
-                const server = await device.gatt.connect();
-                const service = await server.getPrimaryService(SERVICE_UUID);
-                characteristic = await service.getCharacteristic(CHARACTERISTIC_UUID);
                 
-                // 更新状态
-                connectBtn.disabled = true;
-                connectBtn.textContent = "已连接";
-                status.textContent = "连接成功，拖动摇杆盖住文字控制方向";
+                // 保存服务器设置
+                this.dom.saveServerSettingsBtn.addEventListener('click', () => this.saveServerSettings());
                 
-                // 监听断开连接
-                device.addEventListener('gattserverdisconnected', () => {
-                    status.textContent = "设备已断开";
-                    connectBtn.disabled = false;
-                    connectBtn.textContent = "重新连接";
-                    device = null;
-                    characteristic = null;
-                    stopJoystick(); // 断开时停止摇杆
+                // 速度控制事件 - 发送对应的速度数值
+                this.dom.speedSlider.addEventListener('input', (e) => {
+                    const level = parseInt(e.target.value);
+                    this.setSpeed(level);
                 });
-            } catch (err) {
-                status.textContent = err.name === 'NotFoundError' 
-                    ? "未找到设备或已取消" 
-                    : `连接失败：${err.message}`;
+                
+                // 打窝料控制事件（发送D指令）
+                this.dom.deployOnceBtn.addEventListener('click', () => {
+                    this.sendCommand('D');
+                });
+                
+                // 错误模态框关闭按钮
+                this.dom.closeErrorModal.addEventListener('click', () => {
+                    this.dom.errorModal.classList.add('hidden');
+                });
+                
+                // 键盘控制事件（速度调节）
+                document.addEventListener('keydown', (e) => {
+                    if (e.key >= '1' && e.key <= '9') {
+                        e.preventDefault();
+                        this.setSpeed(parseInt(e.key));
+                    }
+                });
+                
+                // 初始化摇杆事件
+                this.initJoystickEvents();
             }
-        });
-        
-        // 发送指令（避免重复发送）
-        async function sendCmd(cmd) {
-            if (!characteristic) {
-                status.textContent = "未连接，无法发送指令";
-                return;
+
+            // 摇杆事件处理 - 增强覆盖检测
+            initJoystickEvents() {
+                const outer = this.dom.joystickOuter;
+                const inner = this.dom.joystickInner;
+                const joystick = this.joystick;
+
+                // 计算摇杆位置和方向
+                const handleJoystickMove = (clientX, clientY) => {
+                    if (!this.state.joystickActive) return;
+                    
+                    const rect = outer.getBoundingClientRect();
+                    const centerX = rect.left + rect.width / 2;
+                    const centerY = rect.top + rect.height / 2;
+                    
+                    let deltaX = clientX - centerX;
+                    let deltaY = clientY - centerY;
+                    let distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+
+                    // 限制最大移动距离
+                    if (distance > joystick.maxDistance) {
+                        deltaX = deltaX * joystick.maxDistance / distance;
+                        deltaY = deltaY * joystick.maxDistance / distance;
+                        distance = joystick.maxDistance;
+                    }
+
+                    // 更新摇杆位置
+                    joystick.currentX = joystick.centerX + deltaX;
+                    joystick.currentY = joystick.centerY + deltaY;
+                    inner.style.left = `${joystick.currentX}px`;
+                    inner.style.top = `${joystick.currentY}px`;
+
+                    // 只有当摇杆完全覆盖箭头（距离超过阈值）时才发送指令
+                    if (distance >= CONSTANTS.JOYSTICK_THRESHOLD) {
+                        this.determineDirectionFromJoystick(deltaX, deltaY, distance);
+                    } 
+                    // 未完全覆盖箭头时发送停止指令
+                    else if (this.state.lastSentCommand !== 'S') {
+                        this.sendCommand('S');
+                    }
+
+                    if (this.state.joystickTimeout) clearTimeout(this.state.joystickTimeout);
+                };
+
+                // 触摸开始
+                outer.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    this.state.joystickActive = true;
+                    const touch = e.touches[0];
+                    handleJoystickMove(touch.clientX, touch.clientY);
+                }, { passive: false });
+
+                // 触摸移动
+                document.addEventListener('touchmove', (e) => {
+                    if (this.state.joystickActive) {
+                        e.preventDefault();
+                        const touch = e.touches[0];
+                        handleJoystickMove(touch.clientX, touch.clientY);
+                    }
+                }, { passive: false });
+
+                // 触摸结束（发送停止指令）
+                const handleEnd = () => {
+                    if (this.state.joystickActive) {
+                        this.state.joystickActive = false;
+                        
+                        // 重置摇杆位置
+                        joystick.currentX = joystick.centerX;
+                        joystick.currentY = joystick.centerY;
+                        inner.style.left = `${joystick.centerX}px`;
+                        inner.style.top = `${joystick.centerY}px`;
+                        
+                        // 发送停止指令
+                        if (this.state.lastSentCommand !== 'S') {
+                            this.sendCommand('S');
+                        }
+                    }
+                };
+                
+                document.addEventListener('touchend', handleEnd);
+                document.addEventListener('touchcancel', handleEnd);
             }
-            if (cmd === lastCmd) return; // 相同指令不重复发
-            
-            try {
-                await characteristic.writeValue(new TextEncoder().encode(cmd));
-                lastCmd = cmd;
-                status.textContent = cmd === "S" ? "指令：停止" 
-                    : cmd === "D" ? "指令：投放料" 
-                    : `指令：${getDirText(cmd[0])}（速度${cmd[1]}）`;
-            } catch (err) {
-                status.textContent = `发送失败：${err.message}`;
+
+            // 根据摇杆位置确定方向指令（F/B/L/R）
+            determineDirectionFromJoystick(deltaX, deltaY, distance) {
+                const angle = Math.atan2(deltaY, deltaX) * 180 / Math.PI;
+                let command = '';
+                
+                // 更精确的方向判断逻辑
+                if (angle >= -45 && angle < 45) {
+                    command = 'R'; // 右
+                } else if (angle >= 45 && angle < 135) {
+                    command = 'B'; // 后
+                } else if (angle >= 135 || angle < -135) {
+                    command = 'L'; // 左
+                } else if (angle >= -135 && angle < -45) {
+                    command = 'F'; // 前
+                }
+                
+                // 避免重复发送相同指令
+                if (command && this.state.lastSentCommand !== command) {
+                    this.sendCommand(command);
+                }
+            }
+
+            // 发送指令
+            sendCommand(command) {
+                // 检查连接状态
+                if (!this.state.isConnected || !this.state.websocket) {
+                    this.showNotification('请先连接服务器', 'error');
+                    return;
+                }
+                
+                try {
+                    // 发送指令
+                    this.state.websocket.send(command);
+                    
+                    // 更新UI状态
+                    const commandMap = {
+                        'F': '前进', 'B': '后退', 'L': '左转', 
+                        'R': '右转', 'S': '停止', 'D': '单次投放'
+                    };
+                    
+                    // 处理速度指令的显示
+                    let displayText = command;
+                    if (command.startsWith('V')) {
+                        displayText = `速度设置(${command.substring(1)})`;
+                    } else {
+                        displayText = commandMap[command] || command;
+                    }
+                    
+                    this.dom.lastCommand.textContent = displayText;
+                    this.dom.sentCommand.textContent = command;
+                    this.state.lastSentCommand = command;
+                    
+                } catch (error) {
+                    this.showNotification('指令发送失败，请重试', 'error');
+                    this.state.isConnected = false;
+                    this.updateConnectionStatus();
+                }
+            }
+
+            // 设置速度（级别 -> 数值）
+            setSpeed(level) {
+                if (level < 1 || level > 9) return;
+                
+                // 更新速度级别和对应数值
+                this.state.currentSpeedLevel = level;
+                this.state.currentSpeedValue = CONSTANTS.SPEED_VALUES[level];
+                
+                // 更新UI
+                this.updateSpeedUI();
+                
+                // 发送速度指令（格式：V+数值，如V150）
+                if (this.state.isConnected) {
+                    this.sendCommand(`V${this.state.currentSpeedValue}`);
+                }
+            }
+
+            // 更新速度UI显示
+            updateSpeedUI() {
+                this.dom.speedLevel.textContent = this.state.currentSpeedLevel;
+                if (this.dom.speedValue) this.dom.speedValue.textContent = this.state.currentSpeedValue;
+                this.dom.speedSlider.value = this.state.currentSpeedLevel;
+            }
+
+            // 保存服务器设置
+            saveServerSettings() {
+                const ip = this.dom.serverIp.value.trim();
+                const port = this.dom.serverPort.value.trim();
+                if (!ip) {
+                    this.showNotification('IP不能为空', 'warning');
+                    return;
+                }
+                if (!port || isNaN(port) || port < 1 || port > 65535) {
+                    this.showNotification('端口无效', 'warning');
+                    return;
+                }
+                localStorage.setItem('carServerIp', ip);
+                localStorage.setItem('carServerPort', port);
+                this.showNotification('设置已保存', 'success');
+            }
+
+            // 加载本地设置
+            loadSettings() {
+                const savedIp = localStorage.getItem('carServerIp');
+                const savedPort = localStorage.getItem('carServerPort');
+                if (savedIp) this.dom.serverIp.value = savedIp;
+                if (savedPort) this.dom.serverPort.value = savedPort;
+            }
+
+            // WebSocket连接
+            connectWebSocket() {
+                const ip = this.dom.serverIp.value.trim();
+                const port = this.dom.serverPort.value.trim();
+                if (!ip || !port) {
+                    this.showNotification('请输入IP和端口', 'warning');
+                    return;
+                }
+
+                const url = `ws://${ip}:${port}`;
+                this.dom.connectionStatus.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>连接中...';
+                this.dom.connectionStatus.className = 'px-4 py-2 bg-warning rounded-full text-sm';
+
+                try {
+                    if (this.state.websocket) this.state.websocket.close();
+                    this.state.websocket = new WebSocket(url);
+
+                    const connTimeout = setTimeout(() => {
+                        this.state.websocket.close();
+                        this.showConnectionError(`连接超时\n\n服务器未在10秒内响应`);
+                    }, 10000);
+
+                    this.state.websocket.onopen = () => {
+                        clearTimeout(connTimeout);
+                        this.state.isConnected = true;
+                        this.state.connectionStartTime = new Date();
+                        this.updateConnectionStatus();
+                        this.startConnectionTimer();
+                        this.showNotification('连接成功', 'success');
+                        
+                        // 连接成功后发送当前速度
+                        this.sendCommand(`V${this.state.currentSpeedValue}`);
+                    };
+
+                    this.state.websocket.onmessage = (event) => {
+                        this.dom.commandStatus.textContent = event.data;
+                        this.dom.commandStatus.className = 'text-green-400';
+                    };
+
+                    this.state.websocket.onclose = (event) => {
+                        clearTimeout(connTimeout);
+                        this.state.isConnected = false;
+                        this.updateConnectionStatus();
+                        this.stopConnectionTimer();
+                        if (!event.wasClean) this.showNotification('连接意外断开', 'warning');
+                    };
+
+                    this.state.websocket.onerror = (err) => {
+                        clearTimeout(connTimeout);
+                        this.state.isConnected = false;
+                        this.updateConnectionStatus();
+                        this.stopConnectionTimer();
+                        this.showConnectionError(`连接错误\n\n${err.message || '无法建立连接'}`);
+                    };
+                } catch (err) {
+                    this.showConnectionError(`初始化失败\n\n${err.message}`);
+                }
+            }
+
+            // 断开连接
+            disconnectWebSocket() {
+                if (this.state.websocket) {
+                    this.state.websocket.close();
+                    this.state.websocket = null;
+                }
+                this.state.isConnected = false;
+                this.updateConnectionStatus();
+                this.stopConnectionTimer();
+                this.showNotification('已断开连接', 'info');
+            }
+
+            // 更新连接状态UI
+            updateConnectionStatus() {
+                if (this.state.isConnected) {
+                    this.dom.connectionStatus.className = 'px-4 py-2 bg-green-500 rounded-full text-sm';
+                    this.dom.connectionStatus.innerHTML = '<i class="fas fa-wifi mr-1"></i>已连接';
+                    this.dom.connectionDetails.className = 'text-green-400';
+                    this.dom.connectionDetails.textContent = '已连接';
+                    this.dom.connectBtn.innerHTML = '<i class="fas fa-unplug mr-1"></i>断开';
+                    this.dom.connectBtn.classList.remove('bg-primary');
+                    this.dom.connectBtn.classList.add('bg-danger');
+                } else {
+                    this.dom.connectionStatus.className = 'px-4 py-2 bg-danger rounded-full text-sm';
+                    this.dom.connectionStatus.innerHTML = '<i class="fas fa-wifi mr-1"></i>未连接';
+                    this.dom.connectionDetails.className = 'text-danger';
+                    this.dom.connectionDetails.textContent = '未连接';
+                    this.dom.connectBtn.innerHTML = '<i class="fas fa-plug mr-1"></i>连接';
+                    this.dom.connectBtn.classList.remove('bg-danger');
+                    this.dom.connectBtn.classList.add('bg-primary');
+                }
+            }
+
+            // 启动连接时长计时器
+            startConnectionTimer() {
+                if (this.state.connectionTimer) clearInterval(this.state.connectionTimer);
+                const updateTime = () => {
+                    if (!this.state.connectionStartTime) return;
+                    const diff = new Date() - this.state.connectionStartTime;
+                    const hours = Math.floor(diff / 3600000).toString().padStart(2, '0');
+                    const minutes = Math.floor((diff % 3600000) / 60000).toString().padStart(2, '0');
+                    const seconds = Math.floor((diff % 60000) / 1000).toString().padStart(2, '0');
+                    this.dom.connectionTime.textContent = `${hours}:${minutes}:${seconds}`;
+                };
+                updateTime();
+                this.state.connectionTimer = setInterval(updateTime, 1000);
+            }
+
+            // 停止连接时长计时器
+            stopConnectionTimer() {
+                if (this.state.connectionTimer) clearInterval(this.state.connectionTimer);
+                this.state.connectionTimer = null;
+                this.dom.connectionTime.textContent = '00:00:00';
+            }
+
+            // 显示连接错误
+            showConnectionError(message) {
+                this.dom.errorDetails.textContent = message;
+                this.dom.errorModal.classList.remove('hidden');
+                this.updateConnectionStatus();
+            }
+
+            // 显示通知
+            showNotification(message, type = 'info') {
+                const notification = document.createElement('div');
+                const typeConfig = {
+                    success: { bg: 'bg-green-500', icon: 'fa-check-circle' },
+                    error: { bg: 'bg-danger', icon: 'fa-exclamation-circle' },
+                    warning: { bg: 'bg-warning', icon: 'fa-exclamation-triangle' },
+                    info: { bg: 'bg-primary', icon: 'fa-info-circle' }
+                };
+                const config = typeConfig[type] || typeConfig.info;
+                notification.className = `notification ${config.bg} text-white`;
+                notification.innerHTML = `<i class="fas ${config.icon} mr-2"></i>${message}`;
+                this.dom.notificationContainer.appendChild(notification);
+                setTimeout(() => {
+                    notification.classList.add('notification-hide');
+                    setTimeout(() => notification.remove(), 300);
+                }, 3000);
             }
         }
-        
-        // 辅助：指令方向转文字（如F→前）
-        function getDirText(dir) {
-            switch(dir) {
-                case "F": return "前";
-                case "B": return "后";
-                case "L": return "左";
-                case "R": return "右";
-                default: return "";
-            }
-        }
-        
-        // 核心逻辑：判断摇杆是否完全盖住文字
-        function isJoystickCoverText(joystickCenter, textRect) {
-            // 摇杆中心坐标 + 摇杆半径 = 摇杆边缘
-            const joystickLeft = joystickCenter.x - joystickRect.width/2;
-            const joystickRight = joystickCenter.x + joystickRect.width/2;
-            const joystickTop = joystickCenter.y - joystickRect.height/2;
-            const joystickBottom = joystickCenter.y + joystickRect.height/2;
-            
-            // 文字完全在摇杆内部 = 摇杆覆盖文字
-            return (
-                joystickLeft <= textRect.left && 
-                joystickRight >= textRect.right && 
-                joystickTop <= textRect.top && 
-                joystickBottom >= textRect.bottom
-            );
-        }
-        
-        // 摇杆触摸开始
-        joystick.addEventListener('touchstart', (e) => {
-            e.preventDefault(); // 阻止页面滚动
-            isJoystickActive = true;
-            // 绑定触摸移动/结束事件
-            document.addEventListener('touchmove', moveJoystick);
-            document.addEventListener('touchend', stopJoystick);
-        });
-        
-        // 摇杆触摸移动（核心：判断覆盖文字）
-        function moveJoystick(e) {
-            if (!isJoystickActive) return;
-            e.preventDefault();
-            
-            // 获取触摸点坐标（仅第一个触摸点）
-            const touch = e.touches[0];
-            const containerRect = joystickContainer.getBoundingClientRect();
-            const containerCenter = { // 摇杆容器中心点
-                x: containerRect.left + containerRect.width/2,
-                y: containerRect.top + containerRect.height/2
-            };
-            
-            // 计算摇杆偏移量（相对于容器中心）
-            let offsetX = touch.clientX - containerCenter.x;
-            let offsetY = touch.clientY - containerCenter.y;
-            
-            // 限制偏移量：不超出容器
-            const offsetDist = Math.sqrt(offsetX**2 + offsetY**2);
-            if (offsetDist > maxOffset) {
-                const scale = maxOffset / offsetDist;
-                offsetX *= scale;
-                offsetY *= scale;
-            }
-            
-            // 更新摇杆位置
-            joystick.style.transform = `translate(calc(-50% + ${offsetX}px), calc(-50% + ${offsetY}px))`;
-            
-            // 计算当前摇杆中心点坐标（用于判断覆盖）
-            const joystickCenter = {
-                x: containerCenter.x + offsetX,
-                y: containerCenter.y + offsetY
-            };
-            
-            // 判断是否覆盖某个方向文字
-            let targetCmd = "S"; // 默认停止
-            if (isJoystickCoverText(joystickCenter, dirRects.front)) {
-                targetCmd = `F${currentSpeed}`; // 覆盖"前"→前进
-            } else if (isJoystickCoverText(joystickCenter, dirRects.back)) {
-                targetCmd = `B${currentSpeed}`; // 覆盖"后"→后退
-            } else if (isJoystickCoverText(joystickCenter, dirRects.left)) {
-                targetCmd = `L${currentSpeed}`; // 覆盖"左"→左转
-            } else if (isJoystickCoverText(joystickCenter, dirRects.right)) {
-                targetCmd = `R${currentSpeed}`; // 覆盖"右"→右转
-            }
-            
-            // 发送目标指令
-            sendCmd(targetCmd);
-        }
-        
-        // 摇杆触摸结束（复位+停止）
-        function stopJoystick() {
-            if (!isJoystickActive) return;
-            isJoystickActive = false;
-            // 移除事件监听
-            document.removeEventListener('touchmove', moveJoystick);
-            document.removeEventListener('touchend', stopJoystick);
-            // 摇杆复位
-            joystick.style.transform = "translate(-50%, -50%)";
-            // 发送停止指令
-            sendCmd("S");
-        }
-        
-        // 紧急停止按钮
-        stopBtn.addEventListener('click', () => {
-            stopJoystick();
-            sendCmd("S");
-        });
-        
-        // 投放料按钮
-        baitBtn.addEventListener('click', () => {
-            sendCmd("D");
-        });
+
+        // 初始化控制器
+        document.addEventListener('DOMContentLoaded', () => new CarController());
     </script>
 </body>
 </html>
