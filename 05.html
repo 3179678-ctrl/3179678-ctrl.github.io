@@ -1,1 +1,308 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>家族族谱（夫妻自动绑定版）</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js"></script>
+  <style>
+    body { background: #fff; font-family: "Microsoft YaHei", sans-serif; margin: 0; padding: 0; overflow-x: hidden; }
+    .tree-container { display: flex; flex-direction: column; align-items: center; padding: 10px 0; }
+    .gen1-row { display: flex; align-items: center; gap: clamp(8px, 2vw, 12px); margin-bottom: 10px; }
+    .connector-l, .connector-v { width: 3px; height: clamp(10px, 2vw, 14px); background: #2563eb; margin: 0 auto; }
+    .connector-h { width: 100%; height: 3px; background: #2563eb; }
+    .children-row { display: flex; justify-content: center; flex-wrap: wrap; gap: clamp(10px, 3vw, 16px); margin-top: 6px; }
+    .person-card { background: #fff; border: 1.5px solid #555; border-radius: 6px; width: clamp(50px, 12vw, 70px); height: clamp(75px, 18vw, 90px); padding: 4px; text-align: center; position: relative; cursor: pointer; display: flex; flex-direction: column; justify-content: center; align-items: center; box-sizing: border-box; }
+    .gen-badge { position: absolute; top: -5px; left: -5px; background: #2563eb; color: #fff; font-size: clamp(8px, 2vw, 10px); padding: 1px 4px; border-radius: 999px; min-width: 18px; text-align: center; z-index: 10; }
+    .card-name { font-size: clamp(7px, 2.5vw, 12px); font-weight: bold; line-height: 1.1; margin: 1px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+    .card-title, .card-birth, .card-note { font-size: clamp(6px, 2vw, 9px); color: #333; line-height: 1.1; margin: 1px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+    .card-birth { color: #666; }
+    .card-note { color: #888; }
+    .card-buttons { opacity: 0; visibility: hidden; transition: all 0.2s; display: flex; gap: 2px; margin-top:2px; }
+    .person-card:hover .card-buttons { opacity: 1; visibility: visible; }
+    .btn { width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 8px; }
+    .btn-edit { background: #3b82f6; }
+    .btn-add { background: #22c55e; }
+    .btn-del { background: #ef4444; }
+    input[type="file"] { display: none; }
+    .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: none; align-items: center; justify-content: center; z-index: 9999; }
+    .modal-content { background: white; padding: 12px; border-radius: 8px; width: 240px; }
+  </style>
+</head>
+<body>
 
+<div class="p-2">
+  <h1 class="text-center text-lg font-bold mb-2">家族族谱（夫妻自动绑定版）</h1>
+  <div class="flex flex-wrap justify-center gap-1.5 mb-3">
+    <button id="saveData" class="px-2 py-1 bg-blue-600 text-white rounded text-xs">保存本地</button>
+    <button id="loadData" class="px-2 py-1 bg-blue-600 text-white rounded text-xs">加载数据</button>
+    <button id="exportImg" class="px-2 py-1 bg-green-600 text-white rounded text-xs">导出图片</button>
+    <button id="exportCsv" class="px-2 py-1 bg-orange-600 text-white rounded text-xs">导出表格</button>
+    <label for="importCsv" class="px-2 py-1 bg-purple-600 text-white rounded text-xs cursor-pointer">导入表格</label>
+    <input type="file" id="importCsv" accept=".csv">
+    <button id="clearAll" class="px-2 py-1 bg-red-600 text-white rounded text-xs">清空</button>
+  </div>
+  <div class="border rounded p-3 h-[85vh] overflow-auto bg-white">
+    <div id="familyTree"></div>
+  </div>
+</div>
+
+<div id="editModal" class="modal">
+  <div class="modal-content">
+    <h3 class="text-center text-sm font-bold mb-2">编辑成员</h3>
+    <input id="eTitle" placeholder="称谓" class="w-full border p-1 mb-1 text-xs">
+    <input id="eName" placeholder="姓名" class="w-full border p-1 mb-1 text-xs">
+    <input id="eBirth" placeholder="出生" class="w-full border p-1 mb-1 text-xs">
+    <input id="eNote" placeholder="事件备注" class="w-full border p-1 mb-1 text-xs">
+    <div class="flex justify-end gap-2 mt-2">
+      <button id="closeEdit" class="text-xs px-2 py-1 bg-gray-200 rounded">取消</button>
+      <button id="saveEdit" class="text-xs px-2 py-1 bg-blue-600 text-white rounded">保存</button>
+    </div>
+  </div>
+</div>
+
+<div id="addModal" class="modal">
+  <div class="modal-content">
+    <h3 class="text-center text-sm font-bold mb-2">添加成员</h3>
+    <input id="aTitle" placeholder="称谓" class="w-full border p-1 mb-1 text-xs">
+    <input id="aName" placeholder="姓名" class="w-full border p-1 mb-1 text-xs">
+    <input id="aBirth" placeholder="出生" class="w-full border p-1 mb-1 text-xs">
+    <input id="aNote" placeholder="事件备注" class="w-full border p-1 mb-1 text-xs">
+    <select id="aType" class="w-full border p-1 mb-1 text-xs">
+      <option value="spouse">配偶</option>
+      <option value="child">子女</option>
+    </select>
+    <div class="flex justify-end gap-2 mt-2">
+      <button id="closeAdd" class="text-xs px-2 py-1 bg-gray-200 rounded">取消</button>
+      <button id="saveAdd" class="text-xs px-2 py-1 bg-blue-600 text-white rounded">添加</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let familyData = {
+  id: "root", title: "始祖", name: "始祖",
+  birth: "", note: "", spouse: null, children: []
+};
+
+let currentEdit = null;
+let addTarget = null;
+const treeEl = document.getElementById("familyTree");
+
+function uid() {
+  return "n" + Date.now() + Math.random().toString(36).substr(2,4);
+}
+
+function renderTree(node, gen=1) {
+  const container = document.createElement("div");
+  container.className = "tree-container";
+  const row = document.createElement("div");
+  row.className = "gen1-row";
+  row.appendChild(createCard(node, gen));
+  if(node.spouse) row.appendChild(createCard(node.spouse, gen));
+  container.appendChild(row);
+  if(node.children.length > 0){
+    const line = document.createElement("div");
+    line.className = "connector-l";
+    container.appendChild(line);
+    const hwrap = document.createElement("div");
+    hwrap.className = "w-full relative";
+    const hline = document.createElement("div");
+    hline.className = "connector-h";
+    hwrap.appendChild(hline);
+    container.appendChild(hwrap);
+    const crow = document.createElement("div");
+    crow.className = "children-row";
+    node.children.forEach(c => {
+      const col = document.createElement("div");
+      col.className = "flex flex-col items-center";
+      const vline = document.createElement("div");
+      vline.className = "connector-v";
+      col.appendChild(vline);
+      col.appendChild(renderTree(c, gen+1));
+      crow.appendChild(col);
+    });
+    container.appendChild(crow);
+  }
+  return container;
+}
+
+function createCard(node, gen){
+  const d = document.createElement("div");
+  d.className = "person-card";
+  d.dataset.id = node.id;
+  d.innerHTML = `
+    <div class="gen-badge">${gen}世</div>
+    <div class="card-name">${node.name}</div>
+    <div class="card-title">${node.title}</div>
+    <div class="card-birth">${node.birth||''}</div>
+    <div class="card-note">${node.note||''}</div>
+    <div class="card-buttons">
+      <button class="btn btn-edit" onclick="edit('${node.id}')"><i class="fa fa-pencil"></i></button>
+      <button class="btn btn-add" onclick="add('${node.id}')"><i class="fa fa-plus"></i></button>
+      <button class="btn btn-del" onclick="del('${node.id}')"><i class="fa fa-times"></i></button>
+    </div>
+  `;
+  return d;
+}
+
+function findNode(root,id){
+  if(root.id===id)return root;
+  if(root.spouse&&root.spouse.id===id)return root.spouse;
+  for(let c of root.children){
+    let r=findNode(c,id);
+    if(r)return r;
+  }
+  return null;
+}
+
+function del(id){
+  if(!confirm("确定删除？"))return;
+  function d(p){
+    if(p.spouse&&p.spouse.id===id){p.spouse=null;return 1}
+    for(let i=0;i<p.children.length;i++){
+      if(p.children[i].id===id){p.children.splice(i,1);return 1}
+      if(d(p.children[i]))return 1;
+    }
+    return 0;
+  }
+  d(familyData);
+  render();
+}
+
+function edit(id){
+  currentEdit=findNode(familyData,id);
+  if(!currentEdit)return;
+  document.getElementById("eTitle").value=currentEdit.title||'';
+  document.getElementById("eName").value=currentEdit.name||'';
+  document.getElementById("eBirth").value=currentEdit.birth||'';
+  document.getElementById("eNote").value=currentEdit.note||'';
+  document.getElementById("editModal").style.display="flex";
+}
+
+function add(id){
+  addTarget=findNode(familyData,id);
+  if(!addTarget)return;
+  document.getElementById("aTitle").value='';
+  document.getElementById("aName").value='';
+  document.getElementById("aBirth").value='';
+  document.getElementById("aNote").value='';
+  document.getElementById("addModal").style.display="flex";
+}
+
+function render(){
+  treeEl.innerHTML='';
+  treeEl.appendChild(renderTree(familyData));
+}
+
+document.getElementById("closeEdit").onclick=()=>{ document.getElementById("editModal").style.display="none"; }
+document.getElementById("closeAdd").onclick=()=>{ document.getElementById("addModal").style.display="none"; }
+
+document.getElementById("saveEdit").onclick=()=>{
+  if(!currentEdit)return;
+  currentEdit.title=document.getElementById("eTitle").value;
+  currentEdit.name=document.getElementById("eName").value;
+  currentEdit.birth=document.getElementById("eBirth").value;
+  currentEdit.note=document.getElementById("eNote").value;
+  document.getElementById("editModal").style.display="none";
+  render();
+};
+
+document.getElementById("saveAdd").onclick=()=>{
+  if(!addTarget)return;
+  let t=document.getElementById("aType").value;
+  let node={id:uid(), title:document.getElementById("aTitle").value, name:document.getElementById("aName").value,
+            birth:document.getElementById("aBirth").value, note:document.getElementById("aNote").value, spouse:null,children:[]};
+  if(t==="spouse")addTarget.spouse=node; else addTarget.children.push(node);
+  document.getElementById("addModal").style.display="none";
+  render();
+};
+
+document.getElementById("saveData").onclick=()=>{ localStorage.setItem("familyTree",JSON.stringify(familyData)); alert("保存成功"); }
+document.getElementById("loadData").onclick=()=>{
+  let d=localStorage.getItem("familyTree"); if(!d)return alert("无数据");
+  familyData=JSON.parse(d); render(); alert("加载成功");
+}
+
+document.getElementById("exportImg").onclick=async()=>{
+  let url=await htmlToImage.toPng(treeEl,{background:"#fff"});
+  let a=document.createElement("a"); a.href=url;a.download="族谱.png";a.click();
+}
+
+document.getElementById("exportCsv").onclick=()=>{
+  let csv="世代,称谓,姓名,出生,备注\n";
+  function walk(n,g){ csv+=`${g},${n.title},${n.name},${n.birth},${n.note}\n`; if(n.spouse)walk(n.spouse,g); n.children.forEach(c=>walk(c,g+1)); }
+  walk(familyData,1);
+  let b=new Blob([csv],{type:"text/csv;charset=utf-8"});
+  let a=document.createElement("a"); a.href=URL.createObjectURL(b);a.download="族谱.csv";a.click();
+}
+
+// ==================== 核心修复：自动识别妻子并绑定 ====================
+document.getElementById("importCsv").onchange = (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const text = reader.result;
+      const lines = text.split(/\r?\n/).map(l=>l.trim()).filter(l=>l);
+      if(lines.length===0){alert("空文件");return;}
+      lines.shift();
+
+      familyData = {id:"root",title:"始祖",name:"始祖",birth:"",note:"",spouse:null,children:[]};
+      let currentCouple = null;
+
+      for(const line of lines){
+        const parts = line.split(",").map(p=>p.replace(/"/g,'').trim());
+        const gen = parseInt(parts[0])||1;
+        const title = parts[1]||"";
+        const name  = parts[2]||"";
+        const birth = parts[3]||"";
+        const note  = parts[4]||"";
+        if(!name)continue;
+
+        const node = {id:uid(), title,name,birth,note,spouse:null,children:[]};
+
+        if(gen === 1){
+          if(!familyData.spouse) familyData.spouse = node;
+        }
+        else if(gen === 2){
+          // 判断是不是妻子
+          const isWife = /妻|配偶|夫人|老婆/.test(title);
+          if(!isWife){
+            familyData.children.push(node);
+            currentCouple = node;
+          } else {
+            if(currentCouple && !currentCouple.spouse){
+              currentCouple.spouse = node;
+            }
+          }
+        }
+        else {
+          if(currentCouple) currentCouple.children.push(node);
+        }
+      }
+
+      render();
+      alert("导入成功！妻子已正确绑定，不再变成子女");
+    }catch(e){
+      alert("导入失败："+e.message);
+    }
+  };
+  reader.readAsText(file);
+};
+
+document.getElementById("clearAll").onclick=()=>{
+  if(!confirm("确定清空？"))return;
+  familyData={id:"root",title:"始祖",name:"始祖",birth:"",note:"",spouse:null,children:[]};
+  localStorage.removeItem("familyTree");
+  render();
+}
+
+render();
+</script>
+</body>
+</html>
