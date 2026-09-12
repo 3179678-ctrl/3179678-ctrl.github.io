@@ -1,420 +1,1290 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
-    <title>批量下级关系绑定工具 (多个号绑定一个号)</title>
-    <script src="https://cdn.jsdelivr.net/npm/web3@1.6.0/dist/web3.min.js"></script>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-        }
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-        }
-        label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-        }
-        input[type="text"],
-        button,
-        textarea {
-            margin-bottom: 15px;
-            padding: 8px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            box-sizing: border-box;
-        }
-        input[type="text"], textarea {
-            width: 100%;
-        }
-        textarea {
-            height: 200px;
-            resize: vertical;
-            font-family: monospace;
-            padding: 10px;
-        }
-        button {
-            cursor: pointer;
-            background-color: #4CAF50;
-            color: white;
-            padding: 12px 20px;
-            border: none;
-            font-size: 16px;
-            border-radius: 4px;
-            transition: background-color 0.3s;
-        }
-        button:hover {
-            background-color: #3e8e41;
-        }
-        #output {
-            margin-top: 20px;
-            border: 1px solid #ccc;
-            padding: 12px;
-            border-radius: 4px;
-            white-space: pre-wrap;
-            height: 250px;
-            overflow-y: auto;
-            background-color: #f9f9f9;
-            font-family: monospace;
-            font-size: 14px;
-        }
-        /* 成功提示样式 */
-        .success {
-            color: #28a745;
-            font-weight: bold;
-        }
-        /* 失败提示样式 */
-        .error {
-            color: #dc3545;
-        }
-        /* 信息提示样式 */
-        .info {
-            color: #007bff;
-        }
-        /* 警告提示样式 */
-        .warning {
-            color: #ffc107;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>全能Swap工具 </title>
+<script src="https://cdn.jsdelivr.net/npm/ethers@6.13.0/dist/ethers.umd.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI','Microsoft YaHei',sans-serif; background: #0d1117; color: #c9d1d9; min-height: 100vh; padding: 20px; }
+  .container { max-width: 1080px; margin: 0 auto; }
+  h1 { font-size: 22px; color: #58a6ff; margin-bottom: 6px; }
+  .subtitle { font-size: 13px; color: #8b949e; margin-bottom: 20px; }
+  .status-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; padding: 10px 14px; background: #161b22; border: 1px solid #30363d; border-radius: 8px; font-size: 13px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #8b949e; flex-shrink: 0; }
+  .dot.green { background: #3fb950; box-shadow: 0 0 6px #3fb950; }
+  .dot.red { background: #f85149; box-shadow: 0 0 6px #f85149; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  @media (max-width: 780px) { .grid { grid-template-columns: 1fr; } }
+  .card { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 16px; }
+  .card h3 { font-size: 14px; color: #58a6ff; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+  label { display: block; font-size: 12px; color: #8b949e; margin-bottom: 4px; }
+  input, select, textarea { width: 100%; padding: 8px 10px; background: #0d1117; border: 1px solid #30363d; border-radius: 6px; color: #c9d1d9; font-size: 13px; font-family: 'Consolas', monospace; outline: none; }
+  input:focus, select:focus, textarea:focus { border-color: #58a6ff; }
+  textarea { resize: vertical; min-height: 80px; line-height: 1.6; }
+  .row { display: flex; gap: 8px; margin-bottom: 10px; }
+  .row > * { flex: 1; min-width: 0; }
+  button { padding: 10px 16px; border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; transition: 0.15s; }
+  .btn-primary { background: #238636; color: #fff; width: 100%; }
+  .btn-primary:hover { background: #2ea043; }
+  .btn-primary:disabled { background: #21262d; color: #484f58; cursor: not-allowed; }
+  .btn-blue { background: #1f6feb; color: #fff; }
+  .btn-blue:hover { background: #388bfd; }
+  .btn-orange { background: #9e6a03; color: #fff; }
+  .btn-orange:hover { background: #bb8009; }
+  .btn-red { background: #da3633; color: #fff; }
+  .btn-red:hover { background: #f85149; }
+  .btn-outline { background: transparent; border: 1px solid #30363d; color: #c9d1d9; }
+  .btn-outline:hover { border-color: #58a6ff; color: #58a6ff; }
+  .btn-sm { padding: 6px 12px; font-size: 12px; }
+  .info-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; border-bottom: 1px solid #21262d; gap: 8px; }
+  .info-row:last-child { border-bottom: none; }
+  .info-label { color: #8b949e; flex-shrink: 0; }
+  .info-value { font-family: 'Consolas', monospace; color: #c9d1d9; text-align: right; word-break: break-all; }
+  .info-value.highlight { color: #3fb950; font-weight: 600; }
+  .info-value.warn { color: #d2991d; }
+  .info-value.err { color: #f85149; }
+  .log { margin-top: 16px; background: #0d1117; border: 1px solid #30363d; border-radius: 8px; padding: 12px; max-height: 300px; overflow-y: auto; font-family: 'Consolas', monospace; font-size: 12px; line-height: 1.7; }
+  .log-entry { padding: 2px 0; word-break: break-all; }
+  .log-entry.ok { color: #3fb950; }
+  .log-entry.err { color: #f85149; }
+  .log-entry.info { color: #58a6ff; }
+  .log-entry.warn { color: #d2991d; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 16px; flex-wrap: wrap; }
+  .tab { padding: 8px 16px; background: #161b22; border: 1px solid #30363d; border-radius: 6px; color: #8b949e; font-size: 13px; cursor: pointer; user-select: none; }
+  .tab.active { background: #1f6feb22; border-color: #58a6ff; color: #58a6ff; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+  .addr { font-family: 'Consolas', monospace; font-size: 11px; color: #8b949e; word-break: break-all; }
+  .mt-8 { margin-top: 8px; }
+  .mt-12 { margin-top: 12px; }
+  .mb-8 { margin-bottom: 8px; }
+  .accounts-list { max-height: 180px; overflow-y: auto; margin-top: 8px; }
+  .acct-item { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 6px; font-family: 'Consolas', monospace; font-size: 12px; cursor: pointer; border: 1px solid transparent; }
+  .acct-item:hover { background: #21262d; }
+  .acct-item.active { background: #1f6feb22; border-color: #58a6ff; }
+  .acct-idx { color: #8b949e; min-width: 24px; }
+  .acct-addr { color: #c9d1d9; }
+  .pill { padding: 1px 6px; border-radius: 8px; font-size: 10px; background: #30363d; color: #8b949e; }
+  .banner { padding: 10px 14px; border-radius: 6px; font-size: 12px; line-height: 1.6; margin-bottom: 12px; }
+  .banner.warn { background: #d2991d22; border: 1px solid #d2991d55; color: #d2991d; }
+  .banner.err { background: #da363322; border: 1px solid #da363355; color: #f85149; }
+  .banner.ok { background: #23863622; border: 1px solid #23863655; color: #3fb950; }
 
-        /* ---------------------- 新增：进度条样式 ---------------------- */
-        .progress-container {
-            width: 100%;
-            height: 24px;
-            background-color: #e9ecef;
-            border-radius: 12px;
-            margin: 15px 0;
-            overflow: hidden;
-            display: none; /* 默认隐藏，处理开始后显示 */
-        }
-        .progress-bar {
-            height: 100%;
-            width: 0%; /* 初始进度0% */
-            background: linear-gradient(90deg, #4CAF50 0%, #3e8e41 100%);
-            border-radius: 12px;
-            transition: width 0.3s ease; /* 进度变化动画 */
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .progress-text {
-            color: white;
-            font-weight: bold;
-            font-size: 14px;
-        }
-    </style>
+  /* 预设栏 */
+  .preset-bar { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; padding: 10px 12px; background: #161b22; border: 1px solid #30363d; border-radius: 8px; }
+  .preset-bar select { flex: 1; }
+  .preset-bar .preset-label { font-size: 12px; color: #8b949e; white-space: nowrap; }
+  .preset-bar button { flex: 0 0 auto; }
+
+  /* Toast 弹窗 */
+  #toastContainer {
+    position: fixed; top: 20px; right: 20px; z-index: 9999;
+    display: flex; flex-direction: column; gap: 10px;
+    pointer-events: none;
+  }
+  .toast {
+    position: relative;
+    min-width: 240px; max-width: 400px;
+    padding: 12px 30px 12px 18px;
+    border-radius: 8px;
+    font-size: 13px; font-weight: 600;
+    color: #fff;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+    animation: toastIn 0.28s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+    pointer-events: auto;
+    word-break: break-word;
+  }
+  .toast.success { background: linear-gradient(135deg,#238636,#2ea043); border-left: 4px solid #3fb950; }
+  .toast.error   { background: linear-gradient(135deg,#8b1a17,#da3633); border-left: 4px solid #f85149; }
+  .toast.info    { background: linear-gradient(135deg,#0d419d,#1f6feb); border-left: 4px solid #58a6ff; }
+  .toast.warn    { background: linear-gradient(135deg,#7c5100,#9e6a03); border-left: 4px solid #d2991d; }
+  .toast .toast-title { font-size: 13px; margin-bottom: 3px; }
+  .toast .toast-body  { font-size: 11px; font-weight: 400; opacity: 0.92; font-family: 'Consolas', monospace; white-space: pre-wrap; line-height: 1.5; }
+  .toast .toast-body a { color: #fff; text-decoration: underline; }
+  .toast .toast-close {
+    position: absolute; top: 6px; right: 8px;
+    cursor: pointer; font-size: 16px; opacity: 0.6; line-height: 1;
+  }
+  .toast .toast-close:hover { opacity: 1; }
+  @keyframes toastIn {
+    from { transform: translateX(120%); opacity: 0; }
+    to   { transform: translateX(0);     opacity: 1; }
+  }
+  @keyframes toastOut {
+    from { transform: translateX(0);     opacity: 1; }
+    to   { transform: translateX(120%); opacity: 0; }
+  }
+</style>
 </head>
 <body>
-    <div class="container">
-        <h1>批量下级关系绑定工具 (多个号绑定一个号)</h1>
+<div class="container">
 
-        <label for="contractAddress">合约地址:</label>
-        <input type="text" id="contractAddress" placeholder="例如: 0x5FbDB2315678afecb367f032d93F642f64180aa3">
+  <h1>⬡ 全能Swap工具</h1>
+  <p class="subtitle">多私钥 · 流动性 · 代币黑白名单 </p>
 
-        <label for="parentAddress">要绑定的上级地址:</label>
-        <input type="text" id="parentAddress" placeholder="例如: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266">
+  <div class="status-bar">
+    <span class="dot" id="statusDot"></span>
+    <span id="statusText">未连接</span>
+    <span style="margin-left:auto; font-size:11px; color:#484f58;" id="blockInfo"></span>
+  </div>
 
-        <label for="privateKeys">下级私钥 (每行一个):</label>
-        <textarea id="privateKeys" placeholder="请粘贴私钥，每行一个
-例如:
-0xac0974bec39a17e36ba4a6b4d238ff944bacb4782bed5d8124391982186e5a25b
-0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d"></textarea>
+  <!-- ===== 预设栏 ===== -->
+  <div class="preset-bar">
+    <span class="preset-label">📌 配置预设</span>
+    <select id="presetSel" onchange="onPresetSelect(this.value)">
+      <option value="">— 选择配置预设 —</option>
+    </select>
+    <button class="btn-blue btn-sm" onclick="saveCurrentAsPreset()">💾 保存当前</button>
+    <button class="btn-outline btn-sm" onclick="renamePreset()">✏️ 重命名</button>
+    <button class="btn-red btn-sm" onclick="deletePreset()">🗑️ 删除</button>
+  </div>
 
-        <!-- 角色配置提示（帮助用户确认权限角色） -->
-        <div style="margin: -10px 0 15px; color: #666; font-size: 13px;">
-            提示：若绑定失败提示"权限不足"，需确认合约角色（默认使用DEFAULT_ADMIN_ROLE，可修改JS中role变量）
+  <!-- ===== 节点配置 ===== -->
+  <div class="card mb-8">
+    <h3>⚙️ 节点与合约配置</h3>
+    <div class="row">
+      <div><label>RPC URL</label><input id="rpcUrl" value="http://192.168.1.68:8545"></div>
+      <div><label>Router</label><input id="routerAddr" value="0x52e0611c30fa9af8bf0760327f2ebeb810f0a0b7"></div>
+    </div>
+    <div class="row">
+      <div><label>USDT</label><input id="usdtAddr" value="0x56f21c096c7fdfee48491ff15cdc0447b0494beb"></div>
+      <div><label>Token</label><input id="tokenAddr" value="0xb54cbbb64dd8504d74361e1e4baf305e8498c5c9"></div>
+    </div>
+    <div class="row">
+      <div><label>Factory（留空自动读取）</label><input id="factoryAddr" placeholder="可选"></div>
+      <div><label>Pair（留空自动读取）</label><input id="pairAddr" placeholder="可选"></div>
+    </div>
+  </div>
+
+  <!-- ===== 账户管理 ===== -->
+  <div class="card mb-8">
+    <h3>👥 账户管理（本地私钥）</h3>
+    <div class="grid" style="margin-bottom:0; gap:12px;">
+      <div>
+        <label>批量私钥（每行一个）</label>
+        <textarea id="privateKeys" placeholder="0x...&#10;0x...&#10;0x..."></textarea>
+        <button class="btn-blue mt-8" onclick="parsePrivateKeys()" style="width:100%;">🔑 解析私钥并生成账户</button>
+      </div>
+      <div>
+        <label>活跃账户</label>
+        <select id="activeAccountSel" onchange="onActiveAccountChange(this.value)"></select>
+        <div id="activeAccountInfo" class="mt-8">
+          <div class="info-row"><span class="info-label">地址</span><span class="info-value addr" id="acctAddr">—</span></div>
+          <div class="info-row"><span class="info-label">原生代币</span><span class="info-value" id="acctNative">—</span></div>
+          <div class="info-row"><span class="info-label">USDT</span><span class="info-value" id="acctUsdt">—</span></div>
+          <div class="info-row"><span class="info-label">Token</span><span class="info-value" id="acctToken">—</span></div>
+          <div class="info-row"><span class="info-label">LP</span><span class="info-value" id="acctLp">—</span></div>
+          <div class="info-row"><span class="info-label">守卫状态</span><span class="info-value" id="acctGuarded">—</span></div>
         </div>
-
-        <button onclick="bindChildren()">批量绑定</button>
-
-        <!-- ---------------------- 新增：进度条HTML ---------------------- -->
-        <div class="progress-container" id="progressContainer">
-            <div class="progress-bar" id="progressBar">
-                <span class="progress-text" id="progressText">0%</span>
-            </div>
+        <div class="row mt-8">
+          <button class="btn-outline btn-sm" onclick="refreshActiveAccount()">🔄 刷新当前</button>
+          <button class="btn-outline btn-sm" onclick="refreshAllAccounts()">🔄 刷新全部</button>
         </div>
+      </div>
+    </div>
+    <div class="accounts-list" id="accountsList"></div>
+  </div>
 
-        <div id="output"></div>
+  <!-- ===== 标签页 ===== -->
+  <div class="tabs">
+    <div class="tab active" data-tab="tab-swap" onclick="switchTab(this)">🔄 Swap</div>
+    <div class="tab" data-tab="tab-token" onclick="switchTab(this)">🛡️ 代币控制</div>
+    <div class="tab" data-tab="tab-liquidity" onclick="switchTab(this)">💧 流动性</div>
+    <div class="tab" data-tab="tab-approve" onclick="switchTab(this)">✅ 授权</div>
+    <div class="tab" data-tab="tab-quote" onclick="switchTab(this)">📊 报价</div>
+    <div class="tab" data-tab="tab-balances" onclick="switchTab(this)">💰 池子</div>
+  </div>
+
+  <!-- Swap -->
+  <div id="tab-swap" class="tab-content active">
+    <div class="card">
+      <h3>🔄 执行 Swap</h3>
+      <div class="row">
+        <div><label>方向</label>
+          <select id="swapDirection">
+            <option value="usdt2token">USDT → Token</option>
+            <option value="token2usdt">Token → USDT</option>
+          </select>
+        </div>
+        <div><label>输入数量</label><input id="swapAmount" value="10"></div>
+      </div>
+      <div class="row">
+        <div><label>滑点 (%)</label><input id="slippage" type="number" value="5" min="0.1" max="90" step="0.1"></div>
+        <div><label>Deadline (分钟)</label><input id="deadlineMin" type="number" value="20"></div>
+      </div>
+      <label style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
+        <input type="checkbox" id="useFeeVersion" style="width:auto;">
+        <span style="color:#8b949e; font-size:12px;">使用 fee-on-transfer 版本 swap（税币推荐）</span>
+      </label>
+      <label style="display:flex; align-items:center; gap:6px; margin-bottom:10px;">
+        <input type="checkbox" id="ultraSafeDeadline" style="width:auto;" checked>
+        <span style="color:#8b949e; font-size:12px;">极安全 deadline（2100 年，杜绝 EXPIRED）</span>
+      </label>
+      <div id="swapPreview" class="mt-8" style="font-size:12px;color:#8b949e;"></div>
+      <button class="btn-primary mt-8" id="btnSwap" onclick="executeSwap()" disabled>🚀 执行 Swap</button>
+      <button class="btn-outline btn-sm mt-8" onclick="runStaticDiagnostic()" style="width:100%;">🧪 运行静态诊断</button>
+    </div>
+  </div>
+
+  <!-- 代币控制 -->
+  <div id="tab-token" class="tab-content">
+    <div id="tokenBanner"></div>
+    <div class="grid">
+      <div class="card">
+        <h3>🛡️ 守卫名单</h3>
+        <div class="info-row"><span class="info-label">当前账户是否被守卫</span><span class="info-value" id="isGuardedCur">—</span></div>
+        <div class="info-row"><span class="info-label">代币 owner</span><span class="info-value addr" id="tkOwner">—</span></div>
+        <div class="info-row"><span class="info-label">代币 operator</span><span class="info-value addr" id="tkOperator">—</span></div>
+        <div class="row mt-8">
+          <div><label>查询/操作地址</label><input id="guardedTarget" placeholder="0x...（默认=当前账户）"></div>
+        </div>
+        <div class="row">
+          <button class="btn-outline btn-sm" onclick="checkGuarded()">🔍 查询</button>
+          <button class="btn-primary btn-sm" style="width:auto;" onclick="addGuardedFn()">➕ 加守卫</button>
+          <button class="btn-red btn-sm" style="width:auto;" onclick="removeGuardedFn()">➖ 移除守卫</button>
+        </div>
+        <button class="btn-outline btn-sm mt-8" onclick="addSelfGuarded()" style="width:100%;">⚡ 把当前账户加入守卫</button>
+      </div>
+
+      <div class="card">
+        <h3>💸 税率 & 地址</h3>
+        <div class="info-row"><span class="info-label">buyFeeRate</span><span class="info-value" id="tkBuyFee">—</span></div>
+        <div class="info-row"><span class="info-label">sellFeeRate</span><span class="info-value" id="tkSellFee">—</span></div>
+        <div class="info-row"><span class="info-label">sellBurnRate</span><span class="info-value" id="tkSellBurn">—</span></div>
+        <div class="info-row"><span class="info-label">feeRobot</span><span class="info-value addr" id="tkFeeRobot">—</span></div>
+        <div class="info-row"><span class="info-label">burnReceiver</span><span class="info-value addr" id="tkBurnRecv">—</span></div>
+      </div>
     </div>
 
-    <script>
-        // 合约ABI（保持原ABI不变）
-        const abi = [
-            {
-                "anonymous": false,
-                "inputs": [{"indexed": false,"internalType": "uint8","name": "version","type": "uint8"}],
-                "name": "Initialized",
-                "type": "event"
-            },
-            {
-                "inputs": [{"internalType": "address","name": "","type": "address"}],
-                "name": "depthOf",
-                "outputs": [{"internalType": "uint256","name": "","type": "uint256"}],
-                "stateMutability": "view",
-                "type": "function",
-                "constant": true
-            },
-            {
-                "inputs": [{"internalType": "bytes32","name": "role","type": "bytes32"},{"internalType": "address","name": "account","type": "address"}],
-                "name": "hasRole",
-                "outputs": [{"internalType": "bool","name": "","type": "bool"}],
-                "stateMutability": "view",
-                "type": "function",
-                "constant": true
-            },
-            {
-                "inputs": [{"internalType": "address","name": "","type": "address"}],
-                "name": "parentOf",
-                "outputs": [{"internalType": "address","name": "","type": "address"}],
-                "stateMutability": "view",
-                "type": "function",
-                "constant": true
-            },
-            {
-                "inputs": [],
-                "name": "rootAddress",
-                "outputs": [{"internalType": "address","name": "","type": "address"}],
-                "stateMutability": "view",
-                "type": "function",
-                "constant": true
-            },
-            {
-                "inputs": [],
-                "name": "totalAddresses",
-                "outputs": [{"internalType": "uint256","name": "","type": "uint256"}],
-                "stateMutability": "view",
-                "type": "function",
-                "constant": true
-            },
-            {
-                "inputs": [{"internalType": "address","name": "_rootAddress","type": "address"},{"internalType": "address","name": "_permissionAdmin","type": "address"}],
-                "name": "initialize",
-                "outputs": [],
-                "stateMutability": "nonpayable",
-                "type": "function"
-            },
-            {
-                "inputs": [{"internalType": "address","name": "owner","type": "address"},{"internalType": "uint256","name": "depth","type": "uint256"}],
-                "name": "getForefathers",
-                "outputs": [{"internalType": "address[]","name": "","type": "address[]"}],
-                "stateMutability": "view",
-                "type": "function",
-                "constant": true
-            },
-            {
-                "inputs": [{"internalType": "address","name": "owner","type": "address"}],
-                "name": "childrenOf",
-                "outputs": [{"internalType": "address[]","name": "","type": "address[]"}],
-                "stateMutability": "view",
-                "type": "function",
-                "constant": true
-            },
-            {
-                "inputs": [{"internalType": "address","name": "owner","type": "address"}],
-                "name": "childrenCount",
-                "outputs": [{"internalType": "uint256","name": "","type": "uint256"}],
-                "stateMutability": "view",
-                "type": "function",
-                "constant": true
-            },
-            {
-                "inputs": [{"internalType": "address","name": "parentAddr","type": "address"}],
-                "name": "makeRelation",
-                "outputs": [],
-                "stateMutability": "nonpayable",
-                "type": "function"
-            }
-        ];
+    <div class="card mt-12">
+      <h3>🔗 代币内置引用 vs 你当前配置</h3>
+      <div class="info-row"><span class="info-label">token.router()</span><span class="info-value addr" id="tkRouter">—</span></div>
+      <div class="info-row"><span class="info-label">你配置的 Router</span><span class="info-value addr" id="cfgRouter">—</span></div>
+      <div class="info-row"><span class="info-label">token.usdt()</span><span class="info-value addr" id="tkUsdt">—</span></div>
+      <div class="info-row"><span class="info-label">你配置的 USDT</span><span class="info-value addr" id="cfgUsdt">—</span></div>
+      <div class="info-row"><span class="info-label">token.pair()</span><span class="info-value addr" id="tkPair">—</span></div>
+      <div class="info-row"><span class="info-label">检测到的 Pair</span><span class="info-value addr" id="cfgPair">—</span></div>
+      <button class="btn-outline btn-sm mt-8" onclick="refreshTokenControl()" style="width:100%;">🔄 刷新代币控制信息</button>
+    </div>
 
-        // 批量绑定核心函数（新增进度条逻辑）
-        async function bindChildren() {
-            // DOM元素获取（新增进度条元素）
-            const contractAddress = document.getElementById("contractAddress").value.trim();
-            const parentAddress = document.getElementById("parentAddress").value.trim();
-            const privateKeysText = document.getElementById("privateKeys").value.trim();
-            const outputDiv = document.getElementById("output");
-            // 新增：进度条相关元素
-            const progressContainer = document.getElementById("progressContainer");
-            const progressBar = document.getElementById("progressBar");
-            const progressText = document.getElementById("progressText");
+    <div class="card mt-12">
+      <h3>🩺 静态模拟诊断</h3>
+      <div class="row">
+        <div><label>方向</label>
+          <select id="diagDir">
+            <option value="usdt2token">USDT → Token</option>
+            <option value="token2usdt">Token → USDT</option>
+          </select>
+        </div>
+        <div><label>数量</label><input id="diagAmount" value="10"></div>
+      </div>
+      <button class="btn-blue" onclick="runStaticDiagnostic()">🧪 运行诊断</button>
+      <div id="diagResult" class="mt-12"></div>
+    </div>
+  </div>
 
-            // 初始化输出区域（清空历史记录）
-            outputDiv.innerHTML = `<span class="info">[${new Date().toLocaleTimeString()}] 开始处理批量绑定...</span>\n`;
+  <!-- 流动性 -->
+  <div id="tab-liquidity" class="tab-content">
+    <div class="grid">
+      <div class="card">
+        <h3>💧 添加流动性</h3>
+        <div class="row">
+          <div><label>USDT</label><input id="addUsdt" value="100"></div>
+          <div><label>Token</label><input id="addToken" value="100"></div>
+        </div>
+        <div class="row">
+          <div><label>滑点 (%)</label><input id="addSlippage" type="number" value="5"></div>
+          <div><label>Deadline (分)</label><input id="addDeadline" type="number" value="20"></div>
+        </div>
+        <button class="btn-primary mt-8" onclick="addLiquidity()">➕ 添加流动性</button>
+      </div>
+      <div class="card">
+        <h3>🔥 移除流动性</h3>
+        <div class="row">
+          <div><label>LP 数量</label><input id="removeLpAmount" placeholder="LP"></div>
+          <div style="display:flex;align-items:flex-end;"><button class="btn-outline btn-sm" style="width:100%;" onclick="fillMaxLp()">用最大 LP</button></div>
+        </div>
+        <div class="row">
+          <div><label>滑点 (%)</label><input id="removeSlippage" type="number" value="5"></div>
+          <div><label>Deadline (分)</label><input id="removeDeadline" type="number" value="20"></div>
+        </div>
+        <button class="btn-primary mt-8" onclick="removeLiquidity()" style="background:#9e6a03;">➖ 移除流动性</button>
+      </div>
+    </div>
+    <div class="card mt-12">
+      <h3>💡 当前账户 LP 状态</h3>
+      <div class="info-row"><span class="info-label">LP 余额</span><span class="info-value highlight" id="lpBalance">—</span></div>
+      <div class="info-row"><span class="info-label">LP 总供应</span><span class="info-value" id="lpTotal">—</span></div>
+      <div class="info-row"><span class="info-label">占池比例</span><span class="info-value" id="lpShare">—</span></div>
+    </div>
+  </div>
 
-            try {
-                // 1. 基础环境检查（MetaMask）
-                if (!window.ethereum) {
-                    outputDiv.innerHTML += `<span class="error">\n[错误] 未检测到MetaMask！请安装钱包插件后重试。</span>`;
-                    return;
-                }
+  <!-- 授权 -->
+  <div id="tab-approve" class="tab-content">
+    <div class="card">
+      <h3>✅ Router 授权管理</h3>
+      <div class="info-row"><span class="info-label">Router 对 USDT 额度</span><span class="info-value" id="allowanceUsdt">—</span></div>
+      <div class="info-row"><span class="info-label">Router 对 Token 额度</span><span class="info-value" id="allowanceToken">—</span></div>
+      <div class="info-row"><span class="info-label">Router 对 LP 额度</span><span class="info-value" id="allowanceLp">—</span></div>
+      <div class="row mt-8">
+        <div><label>授权数量（留空 = 无限）</label><input id="approveAmount" placeholder="留空则授权最大值"></div>
+      </div>
+      <div class="row">
+        <button class="btn-outline" onclick="approveToken('usdt')">授权 USDT</button>
+        <button class="btn-outline" onclick="approveToken('token')">授权 Token</button>
+      </div>
+      <div class="row">
+        <button class="btn-outline" onclick="approveToken('lp')">授权 LP</button>
+        <button class="btn-outline" onclick="approveAll()">一次性授权全部</button>
+      </div>
+      <button class="btn-outline btn-sm mt-8" onclick="refreshAllowances()" style="width:100%;">🔄 刷新授权</button>
+    </div>
+  </div>
 
-                // 2. 输入合法性检查
-                if (!contractAddress) {
-                    outputDiv.innerHTML += `<span class="error">\n[错误] 请输入合约地址！</span>`;
-                    return;
-                }
-                if (!parentAddress) {
-                    outputDiv.innerHTML += `<span class="error">\n[错误] 请输入上级地址！</span>`;
-                    return;
-                }
-                if (!privateKeysText) {
-                    outputDiv.innerHTML += `<span class="error">\n[错误] 请粘贴下级私钥（每行一个）！</span>`;
-                    return;
-                }
+  <!-- 报价 -->
+  <div id="tab-quote" class="tab-content">
+    <div class="card">
+      <h3>📊 报价查询</h3>
+      <div class="row">
+        <div><label>方向</label>
+          <select id="quoteDirection">
+            <option value="usdt2token">USDT → Token</option>
+            <option value="token2usdt">Token → USDT</option>
+          </select>
+        </div>
+        <div><label>输入数量</label><input id="quoteAmount" value="100"></div>
+      </div>
+      <button class="btn-primary" onclick="getQuote()">📈 获取报价</button>
+      <div id="quoteResult" class="mt-12"></div>
+    </div>
+  </div>
 
-                // 3. 处理私钥列表（去空行、去空格）
-                const privateKeys = privateKeysText.split('\n')
-                    .map(key => key.trim())
-                    .filter(key => key !== "" && key.startsWith("0x")); // 只保留以0x开头的有效私钥
+  <!-- 池子 -->
+  <div id="tab-balances" class="tab-content">
+    <div class="grid">
+      <div class="card">
+        <h3>代币元数据</h3>
+        <div class="info-row"><span class="info-label">USDT</span><span class="info-value" id="usdtName">—</span></div>
+        <div class="info-row"><span class="info-label">Token</span><span class="info-value" id="tokenName">—</span></div>
+        <div class="info-row"><span class="info-label">Factory</span><span class="info-value addr" id="factoryDisplay">—</span></div>
+        <div class="info-row"><span class="info-label">Pair</span><span class="info-value addr" id="pairDisplay">—</span></div>
+      </div>
+      <div class="card">
+        <h3>池子信息</h3>
+        <div class="info-row"><span class="info-label">储备 USDT</span><span class="info-value" id="reserveUsdt">—</span></div>
+        <div class="info-row"><span class="info-label">储备 Token</span><span class="info-value" id="reserveToken">—</span></div>
+        <div class="info-row"><span class="info-label">LP 总供应</span><span class="info-value" id="lpTotalSupply">—</span></div>
+        <div class="info-row"><span class="info-label">池子价格</span><span class="info-value" id="poolPrice">—</span></div>
+        <button class="btn-outline btn-sm mt-8" onclick="loadPoolInfo()" style="width:100%;">🔍 刷新池子</button>
+      </div>
+    </div>
+  </div>
 
-                if (privateKeys.length === 0) {
-                    outputDiv.innerHTML += `<span class="error">\n[错误] 未找到有效私钥！私钥需以0x开头。</span>`;
-                    return;
-                }
+  <div class="log" id="log">
+    <div class="log-entry info">[系统] 已就绪。可解析私钥。</div>
+  </div>
 
-                // ---------------------- 新增：初始化进度条 ----------------------
-                progressContainer.style.display = "block"; // 显示进度条
-                progressBar.style.width = "0%"; // 初始进度0%
-                progressText.textContent = "0%"; // 初始文本
+</div>
 
-                // 4. 初始化Web3和合约实例
-                const web3 = new Web3(window.ethereum);
-                const contract = new web3.eth.Contract(abi, contractAddress);
+<div id="toastContainer"></div>
 
-                // 5. 预检查1：合约是否已初始化（避免未初始化导致的绑定失败）
-                let rootAddress;
-                try {
-                    rootAddress = await contract.methods.rootAddress().call();
-                    if (rootAddress === "0x0000000000000000000000000000000000000000") {
-                        outputDiv.innerHTML += `<span class="warning">\n[警告] 合约未初始化！需先调用initialize函数设置rootAddress。</span>`;
-                        // 可选择中断处理或继续（根据业务需求）
-                        // return; 
-                    }
-                } catch (err) {
-                    outputDiv.innerHTML += `<span class="error">\n[合约检查失败] 无法获取rootAddress：${err.message.slice(0, 100)}...</span>`;
-                    progressContainer.style.display = "none"; // 隐藏进度条
-                    return;
-                }
+<script>
+// ============================================================
+//  DEX v5 — 预设 + Toast
+// ============================================================
 
-                // 6. 预检查2：上级地址权限（默认使用DEFAULT_ADMIN_ROLE，可根据合约修改）
-                const ROLE = "0x0000000000000000000000000000000000000000000000000000000000000000"; // DEFAULT_ADMIN_ROLE
-                let parentHasPermission;
-                try {
-                    parentHasPermission = await contract.methods.hasRole(ROLE, parentAddress).call();
-                    if (!parentHasPermission) {
-                        outputDiv.innerHTML += `<span class="warning">\n[权限警告] 上级地址 ${parentAddress} 无绑定权限（需授予 ${ROLE} 角色）！</span>`;
-                        // 可选择中断处理或继续（根据业务需求）
-                        // return;
-                    }
-                } catch (err) {
-                    outputDiv.innerHTML += `<span class="error">\n[权限检查失败] 无法验证上级权限：${err.message.slice(0, 100)}...</span>`;
-                    progressContainer.style.display = "none"; // 隐藏进度条
-                    return;
-                }
+let provider = null;
+let accounts = [];          // [{ pk, address, wallet }]
+let activeIdx = -1;
+let signer = null;
+let userAddress = null;
+let lastPrivateKeysRaw = ''; // 用于预设切换时自动重建账户
 
-                // 7. 遍历私钥，批量绑定（核心逻辑 + 进度更新）
-                let successCount = 0; // 成功计数器
-                const totalCount = privateKeys.length; // 总账户数（用于计算进度）
+let readRouter, readFactory, readUsdt, readToken, readPair;
+let writeRouter, writeUsdt, writeToken, writePair, writeTokenCtl;
 
-                for (let i = 0; i < totalCount; i++) {
-                    const privateKey = privateKeys[i];
-                    const index = i + 1; // 显示序号（从1开始）
+let usdtDecimals = 18, tokenDecimals = 18;
+let usdtSymbol = 'USDT', tokenSymbol = 'TOKEN';
+let factoryAddress = '', pairAddress = '', lpDecimals = 18;
 
-                    try {
-                        // 7.1 从私钥获取子账户地址
-                        const account = web3.eth.accounts.privateKeyToAccount(privateKey);
-                        const childAddress = account.address;
-                        outputDiv.innerHTML += `<span class="info">\n[${index}/${totalCount}] 处理子账户：${childAddress}</span>`;
+// ---------- ABIs ----------
+const ERC20_ABI = [
+  'function name() view returns (string)',
+  'function symbol() view returns (string)',
+  'function decimals() view returns (uint8)',
+  'function balanceOf(address) view returns (uint256)',
+  'function totalSupply() view returns (uint256)',
+  'function allowance(address,address) view returns (uint256)',
+  'function approve(address,uint256) returns (bool)',
+  'function transfer(address,uint256) returns (bool)',
+];
+const TOKEN_ABI = [
+  'function name() view returns (string)',
+  'function symbol() view returns (string)',
+  'function decimals() view returns (uint8)',
+  'function balanceOf(address) view returns (uint256)',
+  'function totalSupply() view returns (uint256)',
+  'function allowance(address,address) view returns (uint256)',
+  'function approve(address,uint256) returns (bool)',
+  'function transfer(address,uint256) returns (bool)',
+  'function owner() view returns (address)',
+  'function operator() view returns (address)',
+  'function router() view returns (address)',
+  'function usdt() view returns (address)',
+  'function pair() view returns (address)',
+  'function feeRobot() view returns (address)',
+  'function burnReceiver() view returns (address)',
+  'function buyFeeRate() view returns (uint256)',
+  'function sellFeeRate() view returns (uint256)',
+  'function sellBurnRate() view returns (uint256)',
+  'function isGuardedOf(address) view returns (bool)',
+  'function addGuarded(address account)',
+  'function removeGuarded(address account)',
+];
+const ROUTER_ABI = [
+  'function factory() view returns (address)',
+  'function getAmountsOut(uint amountIn, address[] calldata path) external view returns (uint[] memory amounts)',
+  'function swapExactTokensForTokens(uint amountIn, uint amountOutMin, address[] calldata path, address to, uint deadline) external returns (uint[] memory amounts)',
+  'function swapExactTokensForTokensSupportingFeeOnTransferTokens(uint amountIn, uint amountOutMin, address[] calldata path, address to, uint deadline) external',
+  'function addLiquidity(address tokenA, address tokenB, uint amountADesired, uint amountBDesired, uint amountAMin, uint amountBMin, address to, uint deadline) external returns (uint amountA, uint amountB, uint liquidity)',
+  'function removeLiquidity(address tokenA, address tokenB, uint liquidity, uint amountAMin, uint amountBMin, address to, uint deadline) external returns (uint amountA, uint amountB)',
+];
+const FACTORY_ABI = ['function getPair(address,address) view returns (address)'];
+const PAIR_ABI = [
+  'function token0() view returns (address)',
+  'function token1() view returns (address)',
+  'function getReserves() view returns (uint112, uint112, uint32)',
+  'function totalSupply() view returns (uint256)',
+  'function balanceOf(address) view returns (uint256)',
+  'function decimals() view returns (uint8)',
+  'function allowance(address,address) view returns (uint256)',
+  'function approve(address,uint256) returns (bool)',
+];
 
-                        // 7.2 预检查3：子账户是否已绑定上级
-                        const currentParent = await contract.methods.parentOf(childAddress).call();
-                        if (currentParent !== "0x0000000000000000000000000000000000000000") {
-                            outputDiv.innerHTML += `<span class="warning">\n[跳过] 子账户已绑定上级：${currentParent}</span>`;
-                            // ---------------------- 新增：更新进度（跳过也算已处理） ----------------------
-                            const progress = Math.round((index / totalCount) * 100);
-                            progressBar.style.width = `${progress}%`;
-                            progressText.textContent = `${progress}%`;
-                            continue;
-                        }
+// ---------- 工具 ----------
+const $ = id => document.getElementById(id);
+const getRpc = () => $('rpcUrl').value.trim();
+const getRouter = () => $('routerAddr').value.trim();
+const getUsdt = () => $('usdtAddr').value.trim();
+const getToken = () => $('tokenAddr').value.trim();
 
-                        // 7.3 构建绑定交易
-                        const tx = contract.methods.makeRelation(parentAddress);
-                        
-                        // 7.4 估算Gas（避免Gas不足）
-                        let gas, gasPrice;
-                        try {
-                            gas = await tx.estimateGas({ from: childAddress });
-                            gasPrice = await web3.eth.getGasPrice();
-                            outputDiv.innerHTML += `<span class="info">\n[Gas信息] 估算Gas: ${gas}, GasPrice: ${web3.utils.fromWei(gasPrice, 'gwei')} Gwei</span>`;
-                        } catch (gasErr) {
-                            outputDiv.innerHTML += `<span class="error">\n[Gas估算失败] ${gasErr.message.slice(0, 100)}...</span>`;
-                            // ---------------------- 新增：更新进度（失败也算已处理） ----------------------
-                            const progress = Math.round((index / totalCount) * 100);
-                            progressBar.style.width = `${progress}%`;
-                            progressText.textContent = `${progress}%`;
-                            continue;
-                        }
+function log(msg, type = 'info') {
+  const el = $('log');
+  const d = document.createElement('div');
+  d.className = 'log-entry ' + type;
+  d.textContent = `[${new Date().toLocaleTimeString('zh-CN', { hour12: false })}] ${msg}`;
+  el.appendChild(d);
+  el.scrollTop = el.scrollHeight;
+}
 
-                        // 7.5 签名交易（使用子账户私钥）
-                        const signedTx = await web3.eth.accounts.signTransaction(
-                            {
-                                to: contractAddress,
-                                data: tx.encodeABI(),
-                                gas: gas,
-                                gasPrice: gasPrice,
-                                chainId: await web3.eth.getChainId() // 增加链ID，避免链不匹配
-                            },
-                            privateKey
-                        );
+function toast(title, body = '', type = 'success', duration = 3500) {
+  const c = $('toastContainer');
+  const t = document.createElement('div');
+  t.className = 'toast ' + type;
+  t.innerHTML = `
+    <span class="toast-close">×</span>
+    <div class="toast-title">${title}</div>
+    ${body ? `<div class="toast-body">${body}</div>` : ''}
+  `;
+  t.querySelector('.toast-close').onclick = () => t.remove();
+  c.appendChild(t);
+  setTimeout(() => {
+    t.style.animation = 'toastOut 0.25s ease forwards';
+    setTimeout(() => t.remove(), 260);
+  }, duration);
+}
 
-                        // 7.6 发送交易并等待确认
-                        const transaction = await web3.eth.sendSignedTransaction(signedTx.rawTransaction);
-                        
-                        // 7.7 绑定成功：绿色高亮提示
-                        successCount++;
-                        outputDiv.innerHTML += `
-                            <span class="success">\n[绑定成功 ✅] 
-                            子账户 ${childAddress} → 上级 ${parentAddress} 
-                            交易哈希：<a href="https://etherscan.io/tx/${transaction.transactionHash}" target="_blank">${transaction.transactionHash}</a>
-                            </span>
-                        `;
+function switchTab(el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  $(el.dataset.tab).classList.add('active');
+}
+function setStatus(c, t) {
+  $('statusDot').className = 'dot ' + (c ? 'green' : 'red');
+  $('statusText').textContent = t;
+}
+const shortAddr = a => a ? a.slice(0, 6) + '…' + a.slice(-4) : '—';
+const sameAddr = (a, b) => a && b && a.toLowerCase() === b.toLowerCase();
+const applySlippage = (amt, pct) => amt * BigInt(Math.floor((1 - pct / 100) * 10000)) / 10000n;
 
-                    } catch (err) {
-                        // 7.8 错误分类处理（精准提示）
-                        let errorMsg = err.message || JSON.stringify(err.data);
-                        if (errorMsg.includes("invalid child")) {
-                            outputDiv.innerHTML += `<span class="error">\n[绑定失败 ❌] 无效子账户（可能未注册或不满足合约规则）</span>`;
-                        } else if (errorMsg.includes("revert")) {
-                            outputDiv.innerHTML += `<span class="error">\n[绑定失败 ❌] 合约拒绝：${errorMsg.slice(0, 120)}...</span>`;
-                        } else if (errorMsg.includes("private key")) {
-                            outputDiv.innerHTML += `<span class="error">\n[绑定失败 ❌] 私钥无效：${errorMsg.slice(0, 80)}...</span>`;
-                        } else {
-                            outputDiv.innerHTML += `<span class="error">\n[绑定失败 ❌] 未知错误：${errorMsg.slice(0, 100)}...</span>`;
-                        }
-                    } finally {
-                        // ---------------------- 新增：最终确保进度更新（无论成功/失败/跳过） ----------------------
-                        const progress = Math.round((index / totalCount) * 100);
-                        progressBar.style.width = `${progress}%`;
-                        progressText.textContent = `${progress}%`;
-                    }
-                }
+function formatRevert(e) {
+  if (!e) return '未知';
+  const parts = [];
+  if (e.shortMessage) parts.push(e.shortMessage);
+  if (e.reason) parts.push('reason=' + e.reason);
+  if (e.info?.error) {
+    if (e.info.error.message) parts.push('msg=' + e.info.error.message);
+    if (e.info.error.data && e.info.error.data !== '0x') parts.push('data=' + e.info.error.data);
+  }
+  if (!parts.length) parts.push(e.message || String(e));
+  return parts.join(' | ');
+}
 
-                // 8. 批量处理完成：汇总统计
-                outputDiv.innerHTML += `
-                    \n\n<span class="info">[处理完成] 总计${totalCount}个账户，成功${successCount}个，失败${totalCount - successCount}个</span>
-                    <span class="info">提示：成功交易可点击哈希在区块链浏览器查看详情</span>
-                `;
-                // 处理完成后保持进度条显示100%（可选：也可设置一段时间后隐藏）
-                progressBar.style.width = "100%";
-                progressText.textContent = "100% (完成)";
+// ============================================================
+//  配置预设（localStorage）
+// ============================================================
+const PRESET_KEY = 'dex_tool_presets_v1';
 
-            } catch (globalErr) {
-                // 全局错误捕获（如Web3初始化失败）
-                outputDiv.innerHTML += `<span class="error">\n[全局错误] 程序异常：${globalErr.message.slice(0, 150)}...</span>`;
-                progressContainer.style.display = "none"; // 全局错误时隐藏进度条
-            }
-        }
-    </script>
+function loadPresets() {
+  try { return JSON.parse(localStorage.getItem(PRESET_KEY)) || {}; }
+  catch { return {}; }
+}
+function savePresets(p) {
+  localStorage.setItem(PRESET_KEY, JSON.stringify(p));
+}
+function renderPresets() {
+  const p = loadPresets();
+  const sel = $('presetSel');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">— 选择配置预设 —</option>';
+  Object.keys(p).sort().forEach(k => {
+    const o = document.createElement('option');
+    o.value = k;
+    o.textContent = k;
+    sel.appendChild(o);
+  });
+  if (cur && p[cur]) sel.value = cur;
+}
+
+function getCurrentConfig() {
+  return {
+    rpc: $('rpcUrl').value.trim(),
+    router: $('routerAddr').value.trim(),
+    usdt: $('usdtAddr').value.trim(),
+    token: $('tokenAddr').value.trim(),
+    factory: $('factoryAddr').value.trim(),
+    pair: $('pairAddr').value.trim(),
+  };
+}
+
+function applyConfig(cfg) {
+  $('rpcUrl').value = cfg.rpc || '';
+  $('routerAddr').value = cfg.router || '';
+  $('usdtAddr').value = cfg.usdt || '';
+  $('tokenAddr').value = cfg.token || '';
+  $('factoryAddr').value = cfg.factory || '';
+  $('pairAddr').value = cfg.pair || '';
+}
+
+function saveCurrentAsPreset() {
+  const name = prompt('请输入预设名称（例如：本地节点 · CAA）:');
+  if (!name || !name.trim()) return;
+  const p = loadPresets();
+  const isOverwrite = !!p[name];
+  p[name.trim()] = getCurrentConfig();
+  savePresets(p);
+  renderPresets();
+  $('presetSel').value = name.trim();
+  toast(isOverwrite ? '✅ 预设已更新' : '✅ 预设已保存', name.trim());
+  log(`💾 预设${isOverwrite ? '更新' : '保存'}: ${name.trim()}`, 'ok');
+}
+
+async function onPresetSelect(name) {
+  if (!name) return;
+  const p = loadPresets();
+  if (!p[name]) return;
+  applyConfig(p[name]);
+  toast('📌 已切换配置预设', name, 'info', 2500);
+  log(`📌 切换预设: ${name}`, 'info');
+
+  // 如果之前解析过私钥，尝试自动重连
+  if (lastPrivateKeysRaw && $('privateKeys').value.trim()) {
+    log(`🔄 自动重建连接…`, 'info');
+    await parsePrivateKeys();
+  } else {
+    log(`ℹ️ 请点击"解析私钥并生成账户"以连接新节点`, 'info');
+  }
+}
+
+function renamePreset() {
+  const oldName = $('presetSel').value;
+  if (!oldName) { toast('未选择预设', '', 'warn'); return; }
+  const newName = prompt(`重命名预设 "${oldName}" 为:`, oldName);
+  if (!newName || !newName.trim() || newName === oldName) return;
+  const p = loadPresets();
+  if (p[newName.trim()]) { toast('❌ 名称已存在', newName, 'error'); return; }
+  p[newName.trim()] = p[oldName];
+  delete p[oldName];
+  savePresets(p);
+  renderPresets();
+  $('presetSel').value = newName.trim();
+  toast('✏️ 重命名成功', newName.trim());
+}
+
+function deletePreset() {
+  const name = $('presetSel').value;
+  if (!name) { toast('未选择预设', '', 'warn'); return; }
+  if (!confirm(`确认删除预设 "${name}"？`)) return;
+  const p = loadPresets();
+  delete p[name];
+  savePresets(p);
+  renderPresets();
+  $('presetSel').value = '';
+  toast('🗑️ 预设已删除', name, 'warn');
+  log(`🗑️ 删除预设: ${name}`, 'warn');
+}
+
+// ============================================================
+//  链上时间 deadline
+// ============================================================
+async function getSafeDeadline(minutes) {
+  const ultraSafe = $('ultraSafeDeadline').checked;
+  if (ultraSafe) {
+    const MAX = 4102444800; // 2100-01-01
+    log(`⏱️ [极安全 deadline] deadline=${MAX}`, 'info');
+    return MAX;
+  }
+  const blk = await provider.getBlock('latest');
+  const nowChain = Number(blk.timestamp);
+  const nowLocal = Math.floor(Date.now() / 1000);
+  const base = Math.max(nowChain, nowLocal);
+  const secs = Math.max(Math.floor(minutes * 60), 3600);
+  const deadline = base + secs;
+  log(`⏱️ 链上=${nowChain} 本地=${nowLocal} base=${base} +${secs}s → deadline=${deadline}`, 'info');
+  return deadline;
+}
+
+// ============================================================
+//  初始化
+// ============================================================
+async function initProvider() {
+  provider = new ethers.JsonRpcProvider(getRpc());
+  const net = await provider.getNetwork();
+  const blk = await provider.getBlockNumber();
+  $('blockInfo').textContent = `Chain ID: ${net.chainId} | 区块: ${blk}`;
+  log(`✅ RPC: Chain ${net.chainId} 区块 ${blk}`, 'ok');
+
+  readRouter = new ethers.Contract(getRouter(), ROUTER_ABI, provider);
+  readUsdt   = new ethers.Contract(getUsdt(), ERC20_ABI, provider);
+  readToken  = new ethers.Contract(getToken(), TOKEN_ABI, provider);
+
+  const mf = $('factoryAddr').value.trim();
+  if (mf) factoryAddress = mf;
+  else {
+    try { factoryAddress = await readRouter.factory(); log(`ℹ️ Factory: ${factoryAddress}`, 'info'); }
+    catch { factoryAddress = ''; }
+  }
+  $('factoryDisplay').textContent = factoryAddress || '未设置';
+  if (factoryAddress) readFactory = new ethers.Contract(factoryAddress, FACTORY_ABI, provider);
+}
+
+// ============================================================
+//  私钥解析 / 账户
+// ============================================================
+async function parsePrivateKeys() {
+  try {
+    if (!provider) { await initProvider(); setStatus(true, '已连接'); }
+    const raw = $('privateKeys').value;
+    const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+    if (!lines.length) { log('❌ 请输入私钥', 'err'); return; }
+    lastPrivateKeysRaw = raw;
+
+    accounts = [];
+    for (let i = 0; i < lines.length; i++) {
+      try {
+        const pk = lines[i].startsWith('0x') ? lines[i] : '0x' + lines[i];
+        const w = new ethers.Wallet(pk, provider);
+        accounts.push({ pk, address: w.address, wallet: w });
+      } catch { log(`❌ 第 ${i + 1} 行私钥无效`, 'err'); }
+    }
+    if (!accounts.length) { log('❌ 没有有效私钥', 'err'); return; }
+
+    log(`✅ 解析完成：${accounts.length} 个账户`, 'ok');
+    toast(`🔑 已加载 ${accounts.length} 个账户`, '', 'info', 2000);
+    renderAccountsList();
+    const sel = $('activeAccountSel');
+    sel.innerHTML = '';
+    accounts.forEach((a, i) => {
+      const o = document.createElement('option');
+      o.value = i; o.textContent = `#${i}  ${a.address}`;
+      sel.appendChild(o);
+    });
+
+    await onActiveAccountChange('0');
+    await loadTokenMeta();
+    await loadPairContract();
+    await loadPoolInfo();
+    await refreshTokenControl();
+    $('btnSwap').disabled = false;
+  } catch (e) {
+    log('❌ 解析失败: ' + (e.message || e), 'err');
+    toast('❌ 解析失败', e.message || String(e), 'error', 5000);
+  }
+}
+
+function renderAccountsList() {
+  const el = $('accountsList');
+  el.innerHTML = '';
+  accounts.forEach((a, i) => {
+    const it = document.createElement('div');
+    it.className = 'acct-item' + (i === activeIdx ? ' active' : '');
+    it.innerHTML = `<span class="acct-idx">#${i}</span><span class="acct-addr">${a.address}</span><span class="pill" id="acct-pill-${i}">—</span>`;
+    it.onclick = () => onActiveAccountChange(String(i));
+    el.appendChild(it);
+  });
+}
+
+async function onActiveAccountChange(idxStr) {
+  const idx = Number(idxStr);
+  if (isNaN(idx) || idx < 0 || idx >= accounts.length) return;
+  activeIdx = idx;
+  const acct = accounts[idx];
+  signer = acct.wallet;
+  userAddress = acct.address;
+
+  writeRouter = new ethers.Contract(getRouter(), ROUTER_ABI, signer);
+  writeUsdt   = new ethers.Contract(getUsdt(), ERC20_ABI, signer);
+  writeToken  = new ethers.Contract(getToken(), TOKEN_ABI, signer);
+  writeTokenCtl = writeToken;
+  if (pairAddress) writePair = new ethers.Contract(pairAddress, PAIR_ABI, signer);
+
+  $('activeAccountSel').value = String(idx);
+  $('acctAddr').textContent = userAddress;
+  setStatus(true, `已连接 · ${shortAddr(userAddress)}`);
+  renderAccountsList();
+
+  await refreshActiveAccount();
+  await refreshAllowances();
+  await checkGuarded();
+}
+
+async function refreshActiveAccount() {
+  if (!userAddress || !provider) return;
+  try {
+    const [n, u, t] = await Promise.all([
+      provider.getBalance(userAddress),
+      readUsdt.balanceOf(userAddress),
+      readToken.balanceOf(userAddress),
+    ]);
+    $('acctNative').textContent = ethers.formatEther(n);
+    $('acctUsdt').textContent = ethers.formatUnits(u, usdtDecimals) + ' ' + usdtSymbol;
+    $('acctToken').textContent = ethers.formatUnits(t, tokenDecimals) + ' ' + tokenSymbol;
+    if (readPair) {
+      const lp = await readPair.balanceOf(userAddress);
+      $('acctLp').textContent = ethers.formatUnits(lp, lpDecimals);
+      $('lpBalance').textContent = ethers.formatUnits(lp, lpDecimals) + ' LP';
+    }
+    const pill = $('acct-pill-' + activeIdx);
+    if (pill) pill.textContent = shortAddr(userAddress);
+  } catch (e) { log('❌ 刷新账户: ' + formatRevert(e), 'err'); }
+}
+
+async function refreshAllAccounts() {
+  if (!accounts.length) return;
+  toast('🔄 正在刷新所有账户…', '', 'info', 1500);
+  for (let i = 0; i < accounts.length; i++) {
+    const a = accounts[i];
+    try {
+      const [n, u, t] = await Promise.all([
+        provider.getBalance(a.address),
+        readUsdt.balanceOf(a.address),
+        readToken.balanceOf(a.address),
+      ]);
+      const pill = $('acct-pill-' + i);
+      if (pill) pill.textContent = `${Number(ethers.formatEther(n)).toFixed(2)} ETH`;
+      log(`#${i} ${shortAddr(a.address)} | ${usdtSymbol} ${ethers.formatUnits(u, usdtDecimals)} | ${tokenSymbol} ${ethers.formatUnits(t, tokenDecimals)}`, 'info');
+    } catch {}
+  }
+  await refreshActiveAccount();
+  toast('✅ 全部账户已刷新', '', 'success', 2000);
+}
+
+async function loadTokenMeta() {
+  try { usdtSymbol = await readUsdt.symbol(); usdtDecimals = Number(await readUsdt.decimals()); }
+  catch { usdtSymbol = '?'; usdtDecimals = 18; }
+  try { tokenSymbol = await readToken.symbol(); tokenDecimals = Number(await readToken.decimals()); }
+  catch { tokenSymbol = '?'; tokenDecimals = 18; }
+  $('usdtName').textContent = `${usdtSymbol}(${usdtDecimals})`;
+  $('tokenName').textContent = `${tokenSymbol}(${tokenDecimals})`;
+  log(`📋 ${usdtSymbol}(${usdtDecimals}) / ${tokenSymbol}(${tokenDecimals})`, 'info');
+}
+
+async function loadPairContract() {
+  const manual = $('pairAddr').value.trim();
+  if (manual) pairAddress = manual;
+  else if (readFactory) {
+    try { pairAddress = await readFactory.getPair(getUsdt(), getToken()); } catch { pairAddress = ''; }
+  }
+  $('pairDisplay').textContent = pairAddress || '未找到';
+  $('cfgPair').textContent = pairAddress || '未找到';
+  if (pairAddress && pairAddress !== ethers.ZeroAddress) {
+    readPair = new ethers.Contract(pairAddress, PAIR_ABI, provider);
+    try { lpDecimals = Number(await readPair.decimals()); } catch { lpDecimals = 18; }
+    if (signer) writePair = new ethers.Contract(pairAddress, PAIR_ABI, signer);
+  } else { readPair = null; writePair = null; }
+}
+
+async function loadPoolInfo() {
+  if (!readPair) return;
+  try {
+    const [res, tot, t0] = await Promise.all([readPair.getReserves(), readPair.totalSupply(), readPair.token0()]);
+    const uIs0 = sameAddr(t0, getUsdt());
+    const rU = uIs0 ? res[0] : res[1];
+    const rT = uIs0 ? res[1] : res[0];
+    $('reserveUsdt').textContent = ethers.formatUnits(rU, usdtDecimals) + ' ' + usdtSymbol;
+    $('reserveToken').textContent = ethers.formatUnits(rT, tokenDecimals) + ' ' + tokenSymbol;
+    $('lpTotalSupply').textContent = ethers.formatUnits(tot, lpDecimals);
+    $('lpTotal').textContent = ethers.formatUnits(tot, lpDecimals);
+    if (rU > 0n && rT > 0n) {
+      const p = Number(ethers.formatUnits(rU, usdtDecimals)) / Number(ethers.formatUnits(rT, tokenDecimals));
+      $('poolPrice').textContent = `1 ${tokenSymbol} ≈ ${p.toFixed(6)} ${usdtSymbol}`;
+    }
+    if (userAddress) {
+      const b = await readPair.balanceOf(userAddress);
+      $('lpShare').textContent = tot > 0n ? (Number(b) / Number(tot) * 100).toFixed(6) + ' %' : '0 %';
+    }
+  } catch (e) { log('❌ 池子: ' + formatRevert(e), 'err'); }
+}
+
+// ============================================================
+//  代币控制
+// ============================================================
+async function refreshTokenControl() {
+  if (!provider) return;
+  $('cfgRouter').textContent = getRouter();
+  $('cfgUsdt').textContent = getUsdt();
+  $('tokenBanner').innerHTML = '';
+  const safe = async (fn, fb = '—') => { try { return await fn(); } catch { return fb; } };
+
+  const owner = await safe(() => readToken.owner());
+  const operator = await safe(() => readToken.operator());
+  const tkRouter = await safe(() => readToken.router());
+  const tkUsdt = await safe(() => readToken.usdt());
+  const tkPair = await safe(() => readToken.pair());
+  const fr = await safe(() => readToken.feeRobot());
+  const br = await safe(() => readToken.burnReceiver());
+  const bf = await safe(() => readToken.buyFeeRate());
+  const sf = await safe(() => readToken.sellFeeRate());
+  const sb = await safe(() => readToken.sellBurnRate());
+
+  $('tkOwner').textContent = owner;
+  $('tkOperator').textContent = operator;
+  $('tkRouter').textContent = tkRouter;
+  $('tkUsdt').textContent = tkUsdt;
+  $('tkPair').textContent = tkPair;
+  $('tkFeeRobot').textContent = fr;
+  $('tkBurnRecv').textContent = br;
+  $('tkBuyFee').textContent = bf === '—' ? '—' : bf.toString();
+  $('tkSellFee').textContent = sf === '—' ? '—' : sf.toString();
+  $('tkSellBurn').textContent = sb === '—' ? '—' : sb.toString();
+
+  const rOk = sameAddr(tkRouter, getRouter());
+  const uOk = sameAddr(tkUsdt, getUsdt());
+  if (!rOk || !uOk) {
+    $('tokenBanner').innerHTML = `<div class="banner err">⚠️ 代币内置 router/usdt 与配置不一致</div>`;
+    toast('⚠️ 代币配置不一致', '见「代币控制」页提示', 'warn', 5000);
+  }
+  await checkGuarded();
+}
+
+async function checkGuarded() {
+  if (!provider) return;
+  const target = $('guardedTarget').value.trim() || userAddress;
+  if (!target || !ethers.isAddress(target)) return;
+  try {
+    const g = await readToken.isGuardedOf(target);
+    $('isGuardedCur').textContent = g ? '✅ 在名单中' : '❌ 不在名单中';
+    $('isGuardedCur').className = 'info-value ' + (g ? 'highlight' : 'err');
+    if (sameAddr(target, userAddress)) {
+      $('acctGuarded').textContent = g ? '✅ 已守卫' : '❌ 未守卫';
+      $('acctGuarded').className = 'info-value ' + (g ? 'highlight' : 'err');
+    }
+  } catch (e) { log('❌ 守卫查询: ' + formatRevert(e), 'err'); }
+}
+
+async function addGuardedFn() {
+  if (!signer) { log('❌ 需签名者', 'err'); return; }
+  const t = $('guardedTarget').value.trim() || userAddress;
+  if (!ethers.isAddress(t)) { log('❌ 地址无效', 'err'); return; }
+  try {
+    log(`⏳ 加守卫: ${t}`, 'info');
+    const tx = await writeTokenCtl.addGuarded(t);
+    log(`📤 ${tx.hash}`, 'info');
+    await tx.wait();
+    log(`✅ 加守卫成功`, 'ok');
+    toast('🛡️ 加守卫成功', shortAddr(t), 'success');
+    await checkGuarded();
+  } catch (e) {
+    log('❌ 加守卫: ' + formatRevert(e), 'err');
+    toast('❌ 加守卫失败', formatRevert(e).slice(0, 100), 'error', 5000);
+  }
+}
+
+async function removeGuardedFn() {
+  if (!signer) return;
+  const t = $('guardedTarget').value.trim() || userAddress;
+  if (!ethers.isAddress(t)) { log('❌ 地址无效', 'err'); return; }
+  try {
+    const tx = await writeTokenCtl.removeGuarded(t);
+    await tx.wait();
+    log(`✅ 移除守卫成功`, 'ok');
+    toast('🗑️ 移除守卫成功', shortAddr(t), 'success');
+    await checkGuarded();
+  } catch (e) {
+    log('❌ 移除守卫: ' + formatRevert(e), 'err');
+    toast('❌ 移除守卫失败', formatRevert(e).slice(0, 100), 'error', 5000);
+  }
+}
+
+async function addSelfGuarded() {
+  if (!userAddress) return;
+  $('guardedTarget').value = userAddress;
+  await addGuardedFn();
+}
+
+// ============================================================
+//  静态诊断
+// ============================================================
+async function runStaticDiagnostic() {
+  if (!signer) { log('❌ 需签名者', 'err'); return; }
+  const dir = $('diagDir').value;
+  const raw = $('diagAmount').value.trim();
+  if (!raw) { log('❌ 数量无效', 'err'); return; }
+
+  const out = $('diagResult');
+  out.innerHTML = '';
+  log(`🧪 静态诊断开始`, 'info');
+
+  const uAddr = getUsdt(), tAddr = getToken();
+  let path, amountIn, inDec, inSym, inContract, outDec, outSym;
+  if (dir === 'usdt2token') {
+    path = [uAddr, tAddr]; inDec = usdtDecimals; inSym = usdtSymbol; inContract = readUsdt;
+    outDec = tokenDecimals; outSym = tokenSymbol;
+    amountIn = ethers.parseUnits(raw, usdtDecimals);
+  } else {
+    path = [tAddr, uAddr]; inDec = tokenDecimals; inSym = tokenSymbol; inContract = readToken;
+    outDec = usdtDecimals; outSym = usdtSymbol;
+    amountIn = ethers.parseUnits(raw, tokenDecimals);
+  }
+
+  const report = [];
+  const addReport = (title, ok, detail) => {
+    report.push(`<div class="banner ${ok ? 'ok' : 'err'}">${ok ? '✅' : '❌'} <b>${title}</b><br>${detail}</div>`);
+  };
+
+  let amountOut = 0n;
+  try {
+    const amts = await readRouter.getAmountsOut(amountIn, path);
+    amountOut = amts[amts.length - 1];
+    addReport('getAmountsOut', true, `预期 ${ethers.formatUnits(amountOut, outDec)} ${outSym}`);
+  } catch (e) {
+    addReport('getAmountsOut', false, formatRevert(e));
+    out.innerHTML = report.join(''); return;
+  }
+
+  try {
+    const bal = await inContract.balanceOf(userAddress);
+    addReport('余额', bal >= amountIn, `${ethers.formatUnits(bal, inDec)} ${inSym} / 需要 ${raw}`);
+  } catch (e) { addReport('余额', false, formatRevert(e)); }
+
+  try {
+    const allow = await inContract.allowance(userAddress, getRouter());
+    addReport('Router 授权', allow >= amountIn, `${ethers.formatUnits(allow, inDec)} / 需要 ${raw}`);
+  } catch (e) { addReport('授权', false, formatRevert(e)); }
+
+  try {
+    const blk = await provider.getBlock('latest');
+    const nowChain = Number(blk.timestamp);
+    const nowLocal = Math.floor(Date.now() / 1000);
+    const drift = nowChain - nowLocal;
+    addReport('链上时间 vs 本地', true,
+      `链上=${nowChain}<br>本地=${nowLocal}<br>偏移=${drift}s`);
+  } catch (e) { addReport('链上时间', false, formatRevert(e)); }
+
+  const deadline = await getSafeDeadline(20);
+  const minOut = applySlippage(amountOut, 5);
+  log(`🧪 deadline=${deadline} 模拟…`, 'info');
+
+  try {
+    await writeRouter.swapExactTokensForTokens.staticCall(amountIn, minOut, path, userAddress, deadline);
+    addReport('swapExactTokensForTokens.staticCall', true, '标准版本通过');
+  } catch (e) {
+    addReport('swapExactTokensForTokens.staticCall', false, formatRevert(e));
+    try {
+      await writeRouter.swapExactTokensForTokensSupportingFeeOnTransferTokens.staticCall(amountIn, minOut, path, userAddress, deadline);
+      addReport('fee-on-transfer staticCall', true, '✅ 请勾选"使用 fee 版本"再 swap');
+    } catch (e2) {
+      addReport('fee-on-transfer staticCall', false, formatRevert(e2));
+    }
+  }
+
+  out.innerHTML = report.join('');
+  log('🧪 诊断完成', 'info');
+}
+
+// ============================================================
+//  Swap
+// ============================================================
+async function executeSwap() {
+  if (!signer) { log('❌ 请先解析私钥', 'err'); return; }
+  try {
+    const dir = $('swapDirection').value;
+    const raw = $('swapAmount').value.trim();
+    const slippage = Number($('slippage').value);
+    const deadlineMin = Number($('deadlineMin').value);
+    const useFee = $('useFeeVersion').checked;
+    if (!raw || isNaN(Number(raw))) { log('❌ 数量无效', 'err'); return; }
+
+    const uAddr = getUsdt(), tAddr = getToken();
+    let path, amountIn, outDec, inSym, outSym, inDec, inContract;
+    if (dir === 'usdt2token') {
+      path = [uAddr, tAddr]; amountIn = ethers.parseUnits(raw, usdtDecimals);
+      outDec = tokenDecimals; inSym = usdtSymbol; outSym = tokenSymbol;
+      inDec = usdtDecimals; inContract = readUsdt;
+    } else {
+      path = [tAddr, uAddr]; amountIn = ethers.parseUnits(raw, tokenDecimals);
+      outDec = usdtDecimals; inSym = tokenSymbol; outSym = usdtSymbol;
+      inDec = tokenDecimals; inContract = readToken;
+    }
+
+    const [allow, bal] = await Promise.all([
+      inContract.allowance(userAddress, getRouter()),
+      inContract.balanceOf(userAddress),
+    ]);
+    log(`🔍 ${inSym} | 余额=${ethers.formatUnits(bal, inDec)} | 授权=${ethers.formatUnits(allow, inDec)} | 需求=${raw}`, 'info');
+    if (allow < amountIn) { log('⚠️ 授权不足', 'warn'); toast('⚠️ 授权不足', '请到「授权」页授权', 'warn'); return; }
+    if (bal < amountIn) { log('⚠️ 余额不足', 'warn'); toast('⚠️ 余额不足', `${raw} ${inSym}`, 'warn'); return; }
+
+    const amts = await readRouter.getAmountsOut(amountIn, path);
+    const amountOut = amts[amts.length - 1];
+    const minOut = applySlippage(amountOut, slippage);
+    const deadline = await getSafeDeadline(deadlineMin);
+
+    $('swapPreview').innerHTML =
+      `预计: <b>${ethers.formatUnits(amountOut, outDec)} ${outSym}</b> · ` +
+      `最小: ${ethers.formatUnits(minOut, outDec)} ${outSym} · 滑点 ${slippage}% · ` +
+      `deadline=${deadline} · ` + (useFee ? 'fee 版本' : '标准版本');
+
+    log('🧪 staticCall 模拟…', 'info');
+    let useStd = false, useFeeOk = false;
+    if (!useFee) {
+      try {
+        await writeRouter.swapExactTokensForTokens.staticCall(amountIn, minOut, path, userAddress, deadline);
+        useStd = true; log('✅ 标准版本可执行', 'ok');
+      } catch (e) { log('❌ 标准版本: ' + formatRevert(e), 'err'); }
+    }
+    if (useFee || !useStd) {
+      try {
+        await writeRouter.swapExactTokensForTokensSupportingFeeOnTransferTokens.staticCall(amountIn, minOut, path, userAddress, deadline);
+        useFeeOk = true; log('✅ fee 版本可执行', 'ok');
+      } catch (e) { log('❌ fee 版本: ' + formatRevert(e), 'err'); }
+    }
+    if (!useStd && !useFeeOk) {
+      log('🚨 两种版本都失败', 'err');
+      toast('🚨 Swap 模拟失败', '请到「代币控制」查看诊断', 'error', 6000);
+      return;
+    }
+
+    let tx;
+    if (useStd) {
+      log('⏳ 发送标准版本…', 'info');
+      tx = await writeRouter.swapExactTokensForTokens(amountIn, minOut, path, userAddress, deadline);
+    } else {
+      log('⏳ 发送 fee 版本…', 'info');
+      tx = await writeRouter.swapExactTokensForTokensSupportingFeeOnTransferTokens(amountIn, minOut, path, userAddress, deadline);
+    }
+    log(`📤 ${tx.hash}`, 'info');
+    toast('⏳ 交易已发送，等待确认…', tx.hash.slice(0, 20) + '…', 'info', 2500);
+    const rc = await tx.wait();
+    log(`✅ Swap 成功 | Gas ${rc.gasUsed}`, 'ok');
+    toast(
+      '🎉 Swap 成功！',
+      `${raw} ${inSym} → ≈${ethers.formatUnits(amountOut, outDec)} ${outSym}\nGas: ${rc.gasUsed}\nTx: ${tx.hash.slice(0, 10)}…${tx.hash.slice(-8)}`,
+      'success', 6000
+    );
+    await refreshActiveAccount();
+    await refreshAllowances();
+    await loadPoolInfo();
+  } catch (e) {
+    log('❌ Swap 失败: ' + formatRevert(e), 'err');
+    toast('❌ Swap 失败', formatRevert(e).slice(0, 120), 'error', 6000);
+  }
+}
+
+// ============================================================
+//  授权
+// ============================================================
+async function refreshAllowances() {
+  if (!userAddress) return;
+  try {
+    const r = getRouter();
+    const [uA, tA] = await Promise.all([
+      readUsdt.allowance(userAddress, r),
+      readToken.allowance(userAddress, r),
+    ]);
+    $('allowanceUsdt').textContent = ethers.formatUnits(uA, usdtDecimals) + ' ' + usdtSymbol;
+    $('allowanceToken').textContent = ethers.formatUnits(tA, tokenDecimals) + ' ' + tokenSymbol;
+    if (readPair) {
+      const lA = await readPair.allowance(userAddress, r);
+      $('allowanceLp').textContent = ethers.formatUnits(lA, lpDecimals) + ' LP';
+    }
+  } catch (e) { log('❌ 授权查询: ' + formatRevert(e), 'err'); }
+}
+
+async function approveToken(which) {
+  if (!signer) { log('❌ 需签名者', 'err'); return; }
+  try {
+    const r = getRouter();
+    const raw = $('approveAmount').value.trim();
+    let c, dec, sym;
+    if (which === 'usdt')  { c = writeUsdt;  dec = usdtDecimals;  sym = usdtSymbol; }
+    if (which === 'token') { c = writeToken; dec = tokenDecimals; sym = tokenSymbol; }
+    if (which === 'lp')    { c = writePair;  dec = lpDecimals;    sym = 'LP'; }
+    if (!c) { log('❌ 合约不存在', 'err'); return; }
+    const isMax = (!raw || raw.toLowerCase() === 'max');
+    const amount = isMax ? ethers.MaxUint256 : ethers.parseUnits(raw, dec);
+    log(`⏳ 授权 ${sym}…`, 'info');
+    const tx = await c.approve(r, amount);
+    log(`📤 ${tx.hash}`, 'info');
+    toast('⏳ 授权交易已发送…', `${sym} · ${tx.hash.slice(0, 18)}…`, 'info', 2500);
+    const rc = await tx.wait();
+    log(`✅ ${sym} 授权成功 | Gas ${rc.gasUsed}`, 'ok');
+    toast(`✅ ${sym} 授权成功`, isMax ? '数量: 无限' : `数量: ${raw}`, 'success');
+    await refreshAllowances();
+  } catch (e) {
+    log('❌ 授权: ' + formatRevert(e), 'err');
+    toast('❌ 授权失败', formatRevert(e).slice(0, 100), 'error', 5000);
+  }
+}
+
+async function approveAll() {
+  toast('🔄 依次授权 USDT / Token / LP…', '', 'info', 2000);
+  await approveToken('usdt');
+  await approveToken('token');
+  if (writePair) await approveToken('lp');
+}
+
+// ============================================================
+//  添加流动性
+// ============================================================
+async function addLiquidity() {
+  if (!signer) { log('❌ 需签名者', 'err'); return; }
+  try {
+    const uRaw = $('addUsdt').value.trim();
+    const tRaw = $('addToken').value.trim();
+    const slip = Number($('addSlippage').value);
+    const dmin = Number($('addDeadline').value);
+    if (!uRaw || !tRaw) { log('❌ 数量无效', 'err'); return; }
+
+    const amtU = ethers.parseUnits(uRaw, usdtDecimals);
+    const amtT = ethers.parseUnits(tRaw, tokenDecimals);
+    const minU = applySlippage(amtU, slip);
+    const minT = applySlippage(amtT, slip);
+    const deadline = await getSafeDeadline(dmin);
+
+    const [aU, aT] = await Promise.all([
+      readUsdt.allowance(userAddress, getRouter()),
+      readToken.allowance(userAddress, getRouter()),
+    ]);
+    if (aU < amtU || aT < amtT) { log('⚠️ 授权不足', 'warn'); toast('⚠️ 授权不足', '', 'warn'); return; }
+
+    log(`➕ 添加流动性 deadline=${deadline}…`, 'info');
+    const tx = await writeRouter.addLiquidity(
+      getUsdt(), getToken(), amtU, amtT, minU, minT, userAddress, deadline
+    );
+    log(`📤 ${tx.hash}`, 'info');
+    toast('⏳ 添加流动性已发送…', tx.hash.slice(0, 18) + '…', 'info', 2500);
+    const rc = await tx.wait();
+    log(`✅ 添加成功 | Gas ${rc.gasUsed}`, 'ok');
+    toast('💧 添加流动性成功', `${uRaw} ${usdtSymbol} + ${tRaw} ${tokenSymbol}`, 'success', 5000);
+    await refreshActiveAccount(); await loadPairContract();
+    await loadPoolInfo(); await refreshAllowances();
+  } catch (e) {
+    log('❌ 添加: ' + formatRevert(e), 'err');
+    toast('❌ 添加流动性失败', formatRevert(e).slice(0, 110), 'error', 5000);
+  }
+}
+
+// ============================================================
+//  移除流动性
+// ============================================================
+async function fillMaxLp() {
+  if (!userAddress || !readPair) return;
+  try {
+    const b = await readPair.balanceOf(userAddress);
+    $('removeLpAmount').value = ethers.formatUnits(b, lpDecimals);
+  } catch {}
+}
+
+async function removeLiquidity() {
+  if (!signer) { log('❌ 需签名者', 'err'); return; }
+  if (!readPair) { log('❌ 无 Pair', 'err'); return; }
+  try {
+    const raw = $('removeLpAmount').value.trim();
+    const slip = Number($('removeSlippage').value);
+    const dmin = Number($('removeDeadline').value);
+    if (!raw) { log('❌ LP 数量无效', 'err'); return; }
+    const liq = ethers.parseUnits(raw, lpDecimals);
+
+    const bLp = await readPair.balanceOf(userAddress);
+    if (bLp < liq) { log('⚠️ LP 余额不足', 'warn'); toast('⚠️ LP 余额不足', '', 'warn'); return; }
+    const aLp = await readPair.allowance(userAddress, getRouter());
+    if (aLp < liq) { log('⚠️ LP 授权不足', 'warn'); toast('⚠️ LP 授权不足', '请到「授权」页授权 LP', 'warn'); return; }
+
+    const [res, tot, t0] = await Promise.all([readPair.getReserves(), readPair.totalSupply(), readPair.token0()]);
+    const uIs0 = sameAddr(t0, getUsdt());
+    const rU = uIs0 ? res[0] : res[1];
+    const rT = uIs0 ? res[1] : res[0];
+    const expU = liq * rU / tot;
+    const expT = liq * rT / tot;
+    const minU = applySlippage(expU, slip);
+    const minT = applySlippage(expT, slip);
+    const deadline = await getSafeDeadline(dmin);
+
+    log(`➖ 移除 ${raw} LP deadline=${deadline}…`, 'info');
+    const tx = await writeRouter.removeLiquidity(
+      getUsdt(), getToken(), liq, minU, minT, userAddress, deadline
+    );
+    log(`📤 ${tx.hash}`, 'info');
+    toast('⏳ 移除流动性已发送…', tx.hash.slice(0, 18) + '…', 'info', 2500);
+    await tx.wait();
+    log(`✅ 移除成功`, 'ok');
+    toast('🔥 移除流动性成功', `${raw} LP`, 'success', 5000);
+    await refreshActiveAccount(); await loadPoolInfo(); await refreshAllowances();
+  } catch (e) {
+    log('❌ 移除: ' + formatRevert(e), 'err');
+    toast('❌ 移除流动性失败', formatRevert(e).slice(0, 110), 'error', 5000);
+  }
+}
+
+// ============================================================
+//  报价
+// ============================================================
+async function getQuote() {
+  if (!provider) return;
+  try {
+    const dir = $('quoteDirection').value;
+    const raw = $('quoteAmount').value.trim();
+    if (!raw) return;
+    const uAddr = getUsdt(), tAddr = getToken();
+    let path, amountIn, outDec, inSym, outSym;
+    if (dir === 'usdt2token') {
+      path = [uAddr, tAddr]; amountIn = ethers.parseUnits(raw, usdtDecimals);
+      outDec = tokenDecimals; inSym = usdtSymbol; outSym = tokenSymbol;
+    } else {
+      path = [tAddr, uAddr]; amountIn = ethers.parseUnits(raw, tokenDecimals);
+      outDec = usdtDecimals; inSym = tokenSymbol; outSym = usdtSymbol;
+    }
+    const amts = await readRouter.getAmountsOut(amountIn, path);
+    const outAmt = ethers.formatUnits(amts[amts.length - 1], outDec);
+    $('quoteResult').innerHTML = `
+      <div class="info-row"><span class="info-label">输入</span><span class="info-value">${raw} ${inSym}</span></div>
+      <div class="info-row"><span class="info-label">输出</span><span class="info-value highlight">${outAmt} ${outSym}</span></div>
+      <div class="info-row"><span class="info-label">汇率</span><span class="info-value">1 ${inSym} ≈ ${(Number(outAmt) / Number(raw)).toFixed(6)} ${outSym}</span></div>`;
+  } catch (e) { log('❌ 报价: ' + formatRevert(e), 'err'); }
+}
+
+// ============================================================
+//  启动
+// ============================================================
+window.addEventListener('DOMContentLoaded', () => {
+  renderPresets();
+  log('v5 已就绪。可先"保存当前"为预设，再解析私钥。', 'info');
+  toast('👋 DEX v5 已启动', '支持配置预设 + Toast 提示', 'info', 2500);
+});
+</script>
 </body>
 </html>
